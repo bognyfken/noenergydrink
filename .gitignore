@@ -40,3 +40,7 @@ coverage/
 .vite/
 
 .vercel
+
+# Playwright MCP артефакты
+.playwright-mcp/
+*.local.png

@@ -41,7 +41,8 @@ export function motivationFor(streak: number, seed = 0): string {
   if (next && next.days - streak <= 2 && streak > 0) {
     const left = next.days - streak
     const word = left === 1 ? 'день' : 'дня'
-    return `До цели «${next.title}» остался${left === 1 ? '' : 'ось'} ${left} ${word} 💜`
+    const verb = left === 1 ? 'остался' : 'осталось'
+    return `До цели «${next.title}» ${verb} ${left} ${word} 💜`
   }
 
   let bank: string[]

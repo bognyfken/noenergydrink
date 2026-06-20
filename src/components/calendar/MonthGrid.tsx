@@ -6,7 +6,8 @@ import {
   startOfMonth,
   startOfWeek,
 } from 'date-fns'
-import { dateKey, todayKey, WEEKDAYS_SHORT } from '../../lib/date'
+import { dateKey, WEEKDAYS_SHORT } from '../../lib/date'
+import { useToday } from '../../hooks/useToday'
 import type { DayEntry } from '../../lib/types'
 
 interface Props {
@@ -26,7 +27,7 @@ export default function MonthGrid({ month, entries, onSelectDay }: Props) {
   const gridStart = startOfWeek(startOfMonth(month), { weekStartsOn: 1 })
   const gridEnd = endOfWeek(endOfMonth(month), { weekStartsOn: 1 })
   const days = eachDayOfInterval({ start: gridStart, end: gridEnd })
-  const today = todayKey()
+  const today = useToday()
 
   return (
     <div>

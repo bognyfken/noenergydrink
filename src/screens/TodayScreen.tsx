@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { LogOut, Settings, User } from 'lucide-react'
 import { useStore } from '../lib/store'
 import { useStreak } from '../hooks/useStreak'
-import { todayKey } from '../lib/date'
+import { useToday } from '../hooks/useToday'
+import { parseKey } from '../lib/date'
 import { motivationFor } from '../lib/motivation'
 import StreakFlame from '../components/today/StreakFlame'
 import PrimaryButton from '../components/today/PrimaryButton'
@@ -10,7 +11,7 @@ import MotivationCard from '../components/today/MotivationCard'
 import Sheet from '../components/ui/Sheet'
 
 export default function TodayScreen() {
-  const today = todayKey()
+  const today = useToday()
   const status = useStore((s) => s.entries[today]?.status ?? 'unmarked')
   const setDay = useStore((s) => s.setDay)
   const session = useStore((s) => s.session)
@@ -18,7 +19,7 @@ export default function TodayScreen() {
   const { current } = useStreak()
   const [settingsOpen, setSettingsOpen] = useState(false)
 
-  const seed = new Date().getDate()
+  const seed = parseKey(today).getDate()
   const motivation = motivationFor(current, seed)
 
   return (

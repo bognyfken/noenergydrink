@@ -48,17 +48,29 @@ create table if not exists meta (
   primary key (user_id, key)
 );
 
+-- Подписки на Web Push (ежедневные напоминания). Рассылку шлёт Vercel Cron.
+create table if not exists push_subscriptions (
+  endpoint      text primary key,
+  p256dh        text not null,
+  auth          text not null,
+  did           text,
+  enabled       boolean not null default true,
+  reminder_hour int not null default 20,
+  created_at    timestamptz not null default now()
+);
+
 -- ── RLS ───────────────────────────────────────────────────────────────────
-alter table profiles     enable row level security;
-alter table entries      enable row level security;
-alter table achievements enable row level security;
-alter table messages     enable row level security;
-alter table meta         enable row level security;
+alter table profiles           enable row level security;
+alter table entries            enable row level security;
+alter table achievements       enable row level security;
+alter table messages           enable row level security;
+alter table meta               enable row level security;
+alter table push_subscriptions enable row level security;
 
 do $$
 declare t text;
 begin
-  foreach t in array array['profiles', 'entries', 'achievements', 'messages', 'meta'] loop
+  foreach t in array array['profiles', 'entries', 'achievements', 'messages', 'meta', 'push_subscriptions'] loop
     execute format('drop policy if exists anon_all on %I;', t);
     execute format(
       'create policy anon_all on %I for all to anon using (true) with check (true);', t

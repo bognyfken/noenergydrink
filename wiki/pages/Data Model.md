@@ -10,9 +10,18 @@
 - `ChatMessage { id, role, content, createdAt, toolResult? }` — для этапа 3.
 
 ## Хранилища
-- **Dexie** (`lib/db.ts`), БД `net-energetikam`: `entries` (pk date), `achievements` (pk id),
-  `messages`, `meta`.
-- **Supabase** (`supabase/schema.sql`): те же таблицы + колонка `user_id`, RLS с политикой для `anon`.
+- **Dexie** (`lib/db.ts`), БД `net-energetikam-<did>` (namespace по профилю — данные профилей на одном
+  устройстве не смешиваются): `entries` (pk date), `achievements` (pk id), `messages`, `meta`.
+- **Supabase** (`supabase/schema.sql`): те же таблицы + колонка `user_id` (= секретный `did`), RLS `anon`.
+- **`profiles`** (вход по коду, `lib/auth.ts`): `id`, `name`, `salt`, `verifier` — для выбора профиля и
+  проверки кода; сам код и `did` не хранятся (`did = sha256("did:"+id+":"+salt+":"+code)`).
+- **`push_subscriptions`** (напоминания): `endpoint` (pk), `p256dh`, `auth`, `did`, `enabled`,
+  `reminder_hour`. Пишется при включении тумблера; читается Vercel Cron для рассылки. См. [[Architecture]].
+
+## Сессия/устройство (`src/lib/auth.ts`)
+- `Session { profileId, name, did }` — в памяти (не сохраняется → код при каждом запуске).
+- `DeviceProfile { id, name, salt, verifier }` — в `localStorage` (`ne_device_v1`), чтобы показать
+  экран ввода кода без выбора профиля.
 
 ## Расчёт серии (`src/lib/streak.ts`, чистые функции, покрыты тестами)
 - `computeCurrentStreak`: подряд `clean` до сегодня; если сегодня `unmarked` — считаем со вчера
@@ -20,9 +29,20 @@
 - `computeBestStreak`: самый длинный непрерывный отрезок `clean`.
 - `computeTotalCleanDays`: все `clean`.
 
-## Ачивки (`src/lib/achievements.ts`)
-Майлстоуны 1/3/7/14/30/60/100. `unlockedIdsForStreak(best)` → какие открыты.
-Стор пересчитывает в `_reconcileAchievements`, новые кладёт в `justUnlocked` для тоста.
+## Ачивки (`src/lib/achievements.ts`, чистые функции, покрыты тестами)
+- **37 ачивок**, у каждой предикат `test(s: AchStats) => boolean` + `category` + опц. `goal`/`secret`.
+- `AchStats` — богатая статистика из журнала (а не только серия): `best`, `totalClean`, `totalDrank`,
+  `totalMarked`, `notes`, `comebacks`, `loggingStreak`, `cleanWeekends`, `fullCalendarWeeks`,
+  `cleanMondays`, `bestMonthClean`, `fullCalendarMonth`, `distinctCleanMonths`, `cleanNewYear`,
+  и секретные: `leapDayClean`, `friday13Clean`, `markedAtNight`, `postLapseStreak`, `phoenix`.
+- `computeAchStats(entries)` собирает всё за один разбор; разбита на помощники
+  `chronoSignals` (хронология: возвраты, серия учёта, серия-после-срыва, феникс) /
+  `calendarSignals` (выходные, идеальные недели, понедельники, пасхалки) / `monthSignals` (по месяцам).
+- `unlockedIds(stats)` → id открытых. `nextAchievement(streak)` → ближайшая по серии (для мотивации).
+- ⚠️ `markedAtNight` опирается на `updatedAt` (время правки, не создания) — для пасхалки ок, но это
+  не точный «момент отметки»; для честной метки нужен отдельный `createdAt`.
+- Стор пересчитывает в `_reconcileAchievements` (`computeAchStats` → `unlockedIds`), новые id кладёт
+  в `justUnlocked` для тоста. Открываются и задним числом по истории.
 
 ## Даты (`src/lib/date.ts`)
 Везде локальная зона, ключ `dateKey()` = 'YYYY-MM-DD' (чтобы «сегодня» совпадало с телефоном).

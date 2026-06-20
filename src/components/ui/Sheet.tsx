@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import type { ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 
 interface SheetProps {
   open: boolean
@@ -8,9 +9,13 @@ interface SheetProps {
   children: ReactNode
 }
 
-/** Нижний шит (bottom sheet) с затемнением и пружинной анимацией. */
+/**
+ * Нижний шит (bottom sheet). Рендерится через портал в document.body —
+ * иначе на iOS Safari `position: fixed` внутри скролл-контейнера ведёт себя
+ * как absolute и шит обрезается (не видно нижних кнопок).
+ */
 export default function Sheet({ open, onClose, title, children }: SheetProps) {
-  return (
+  return createPortal(
     <AnimatePresence>
       {open && (
         <>
@@ -22,7 +27,7 @@ export default function Sheet({ open, onClose, title, children }: SheetProps) {
             onClick={onClose}
           />
           <motion.div
-            className="fixed inset-x-0 bottom-0 z-50 mx-auto flex max-h-[90dvh] max-w-md flex-col rounded-t-[28px] border-t border-white/10 bg-surface px-5 pt-3 shadow-2xl"
+            className="fixed inset-x-0 bottom-0 z-50 mx-auto flex max-h-[88dvh] max-w-md flex-col rounded-t-[28px] border-t border-white/10 bg-surface px-5 pt-3 shadow-2xl"
             style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)' }}
             initial={{ y: '100%' }}
             animate={{ y: 0 }}
@@ -37,6 +42,7 @@ export default function Sheet({ open, onClose, title, children }: SheetProps) {
           </motion.div>
         </>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   )
 }

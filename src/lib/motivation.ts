@@ -38,8 +38,8 @@ function pick(list: string[], seed: number): string {
 export function motivationFor(streak: number, seed = 0): string {
   const next = nextAchievement(streak)
   // если до ачивки осталось 1–2 дня — показываем цель
-  if (next && next.days - streak <= 2 && streak > 0) {
-    const left = next.days - streak
+  if (next && next.goal - streak <= 2 && streak > 0) {
+    const left = next.goal - streak
     const word = left === 1 ? 'день' : 'дня'
     const verb = left === 1 ? 'остался' : 'осталось'
     return `До цели «${next.title}» ${verb} ${left} ${word} 💜`

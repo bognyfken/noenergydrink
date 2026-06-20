@@ -6,18 +6,21 @@ import CalendarScreen from './screens/CalendarScreen'
 import AchievementsScreen from './screens/AchievementsScreen'
 import ChatScreen from './screens/ChatScreen'
 import AuthScreen from './screens/AuthScreen'
+import LockScreen from './screens/LockScreen'
 import { useStore } from './lib/store'
 
 export default function App() {
   const authReady = useStore((s) => s.authReady)
   const session = useStore((s) => s.session)
+  const device = useStore((s) => s.device)
 
   if (!authReady) {
     return <div className="app-shell items-center justify-center text-muted">…</div>
   }
 
   if (!session) {
-    return <AuthScreen />
+    // профиль запомнен на устройстве → быстрый ввод кода; иначе выбор/создание
+    return device ? <LockScreen /> : <AuthScreen />
   }
 
   return (

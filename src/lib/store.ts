@@ -19,13 +19,21 @@ import {
   cloudUpsertEntry,
   setActiveUserId,
 } from './supabase'
-import { clearSession, getSession, setSession, type Session } from './auth'
+import {
+  clearDeviceProfile,
+  getDeviceProfile,
+  setDeviceProfile,
+  type DeviceProfile,
+  type Session,
+} from './auth'
 import { toEntryMap, computeBestStreak } from './streak'
-import { unlockedIdsForStreak } from './achievements'
+import { unlockedIds } from './achievements'
 
 interface AppState {
   session: Session | null
-  /** прошла ли первичная проверка сохранённой сессии (чтобы не мигать экраном входа). */
+  /** профиль, запомненный на устройстве (для экрана ввода кода). */
+  device: DeviceProfile | null
+  /** прошла ли первичная проверка (чтобы не мигать экраном входа). */
   authReady: boolean
   entries: Record<string, DayEntry>
   unlocked: Record<string, UnlockedAchievement>
@@ -34,8 +42,11 @@ interface AppState {
   justUnlocked: string[]
 
   init: () => Promise<void>
-  login: (session: Session) => Promise<void>
+  /** войти по коду; при первом входе/смене профиля передаётся device для запоминания. */
+  login: (session: Session, device?: DeviceProfile) => Promise<void>
   logout: () => void
+  /** забыть профиль устройства и уйти к выбору/созданию профиля. */
+  forgetDevice: () => void
   hydrate: () => Promise<void>
   setDay: (date: string, status: DayStatus, note?: string) => Promise<void>
   setNote: (date: string, note: string) => Promise<void>
@@ -63,6 +74,7 @@ function mergeByUpdatedAt(local: DayEntry[], cloud: DayEntry[]): DayEntry[] {
 
 export const useStore = create<AppState>((set, get) => ({
   session: null,
+  device: null,
   authReady: false,
   entries: {},
   unlocked: {},
@@ -70,27 +82,32 @@ export const useStore = create<AppState>((set, get) => ({
   justUnlocked: [],
 
   init: async () => {
-    const s = getSession()
-    if (s) {
-      activate(s)
-      set({ session: s, authReady: true })
-      await get().hydrate()
-    } else {
-      set({ authReady: true })
-    }
+    set({ device: getDeviceProfile(), authReady: true })
   },
 
-  login: async (s) => {
+  login: async (s, device) => {
+    if (device) setDeviceProfile(device)
     activate(s)
-    setSession(s)
-    set({ session: s, entries: {}, unlocked: {}, hydrated: false, justUnlocked: [] })
+    set((st) => ({
+      session: s,
+      device: device ?? st.device,
+      entries: {},
+      unlocked: {},
+      hydrated: false,
+      justUnlocked: [],
+    }))
     await get().hydrate()
   },
 
   logout: () => {
-    clearSession()
+    clearDeviceProfile()
     setActiveUserId('default')
-    set({ session: null, entries: {}, unlocked: {}, hydrated: false, justUnlocked: [] })
+    set({ session: null, device: null, entries: {}, unlocked: {}, hydrated: false, justUnlocked: [] })
+  },
+
+  forgetDevice: () => {
+    clearDeviceProfile()
+    set({ device: null, session: null })
   },
 
   hydrate: async () => {
@@ -175,8 +192,22 @@ export const useStore = create<AppState>((set, get) => ({
   // ── приватное: пересчёт открытых ачивок ───────────────────────────────
   _reconcileAchievements: () => {
     const { entries, unlocked } = get()
-    const best = computeBestStreak(toEntryMap(Object.values(entries)))
-    const shouldBe = unlockedIdsForStreak(best)
+    const vals = Object.values(entries)
+    const best = computeBestStreak(toEntryMap(vals))
+    const totalClean = vals.filter((e) => e.status === 'clean').length
+
+    // возвращение: чистый день после когда-то случившегося срыва
+    let seenDrank = false
+    let comeback = false
+    for (const e of [...vals].sort((a, b) => (a.date < b.date ? -1 : 1))) {
+      if (e.status === 'drank') seenDrank = true
+      else if (e.status === 'clean' && seenDrank) {
+        comeback = true
+        break
+      }
+    }
+
+    const shouldBe = unlockedIds({ best, totalClean, comeback })
     const fresh = shouldBe.filter((id) => !unlocked[id])
     if (fresh.length === 0) return
 

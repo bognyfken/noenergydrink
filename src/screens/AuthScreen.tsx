@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { ArrowLeft, Flame, Plus, User } from 'lucide-react'
+import { ArrowLeft, Plus, User } from 'lucide-react'
 import {
   cloudCreateProfile,
   cloudListProfiles,
@@ -51,7 +51,10 @@ export default function AuthScreen() {
       return
     }
     const did = await deriveDid(selected.id, selected.salt, code)
-    await login({ profileId: selected.id, name: selected.name, did })
+    await login(
+      { profileId: selected.id, name: selected.name, did },
+      { id: selected.id, name: selected.name, salt: selected.salt, verifier: selected.verifier },
+    )
   }
 
   async function handleCreate() {
@@ -75,7 +78,10 @@ export default function AuthScreen() {
       return
     }
     const did = await deriveDid(id, salt, code)
-    await login({ profileId: id, name: trimmed, did })
+    await login(
+      { profileId: id, name: trimmed, did },
+      { id, name: trimmed, salt, verifier },
+    )
   }
 
   return (
@@ -86,9 +92,11 @@ export default function AuthScreen() {
         className="mx-auto flex w-full max-w-sm flex-col items-center"
       >
         <div className="mb-6 flex flex-col items-center gap-3">
-          <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-gradient-to-br from-primary to-accent shadow-lg shadow-primary/30">
-            <Flame size={40} color="#fff" fill="#fff" />
-          </div>
+          <img
+            src="/logo.png"
+            alt=""
+            className="h-20 w-20 rounded-3xl shadow-lg shadow-primary/30"
+          />
           <h1 className="text-2xl font-bold text-text">Нет энергетикам</h1>
           <p className="text-center text-sm text-muted">
             {view === 'create'

@@ -1,19 +1,28 @@
 // Лёгкая авторизация по коду (без email). У каждого профиля свой код доступа.
 //
-// Приватность: данные пользователя в облаке лежат под секретным user_id (did),
-// который ВЫВОДИТСЯ из кода и нигде не хранится. В таблице profiles хранится только
-// salt + verifier (для проверки кода на клиенте). Без кода нельзя ни пройти проверку,
-// ни вычислить did → данные не подсмотреть даже через API.
+// На устройстве запоминается ТОЛЬКО профиль (id, name, salt, verifier) — этого
+// хватает, чтобы при запуске показать красивый ввод кода (как на iPhone) без
+// выбора профиля и проверить код офлайн. Сам код и секретный user_id (did) НЕ
+// хранятся: did выводится из кода при каждом входе.
 //
-// Ограничение: verifier читаем через anon-ключ, поэтому короткий код теоретически
-// перебираем оффлайн. Для «случайно зашедших» защита полная; банковской — нет.
+// Приватность: данные профиля в облаке лежат под did, выводимым из кода, и нигде
+// не хранятся. verifier читаем anon-ключом → короткий код перебираем оффлайн
+// (для «случайно зашедших» защита полная; банковской нет — позже Supabase Auth).
 
-const SESSION_KEY = 'ne_session_v1'
+const DEVICE_KEY = 'ne_device_v1'
 
 export interface Session {
   profileId: string
   name: string
-  did: string // секретный user_id для данных
+  did: string // секретный user_id для данных (в памяти, не сохраняется)
+}
+
+/** Профиль, запомненный на этом устройстве (для экрана ввода кода). */
+export interface DeviceProfile {
+  id: string
+  name: string
+  salt: string
+  verifier: string
 }
 
 // ── Web Crypto helpers ────────────────────────────────────────────────────
@@ -30,7 +39,7 @@ export function randomToken(bytes = 16): string {
   return [...a].map((b) => b.toString(16).padStart(2, '0')).join('')
 }
 
-/** verifier — для проверки правильности кода (хранится в profiles). */
+/** verifier — для проверки правильности кода. */
 export function makeVerifier(salt: string, code: string): Promise<string> {
   return sha256hex(`verify:${salt}:${code}`)
 }
@@ -40,23 +49,23 @@ export function deriveDid(profileId: string, salt: string, code: string): Promis
   return sha256hex(`did:${profileId}:${salt}:${code}`)
 }
 
-// ── Сессия (localStorage) ─────────────────────────────────────────────────
+// ── Профиль устройства (localStorage) ─────────────────────────────────────
 
-export function getSession(): Session | null {
+export function getDeviceProfile(): DeviceProfile | null {
   try {
-    const raw = localStorage.getItem(SESSION_KEY)
-    return raw ? (JSON.parse(raw) as Session) : null
+    const raw = localStorage.getItem(DEVICE_KEY)
+    return raw ? (JSON.parse(raw) as DeviceProfile) : null
   } catch {
     return null
   }
 }
 
-export function setSession(s: Session): void {
-  localStorage.setItem(SESSION_KEY, JSON.stringify(s))
+export function setDeviceProfile(p: DeviceProfile): void {
+  localStorage.setItem(DEVICE_KEY, JSON.stringify(p))
 }
 
-export function clearSession(): void {
-  localStorage.removeItem(SESSION_KEY)
+export function clearDeviceProfile(): void {
+  localStorage.removeItem(DEVICE_KEY)
 }
 
 export const MIN_CODE_LENGTH = 4

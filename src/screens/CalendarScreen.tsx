@@ -5,16 +5,22 @@ import MonthGrid from '../components/calendar/MonthGrid'
 import DayEditorSheet from '../components/calendar/DayEditorSheet'
 import { monthTitle } from '../lib/date'
 import { useStore } from '../lib/store'
+import { useStreak } from '../hooks/useStreak'
+import { dayWord } from '../lib/plural'
 
 export default function CalendarScreen() {
   const [month, setMonth] = useState(() => new Date())
   const [selected, setSelected] = useState<string | null>(null)
   const entries = useStore((s) => s.entries)
+  const { total } = useStreak()
 
   return (
     <div className="flex flex-col gap-5 pt-6">
-      <header className="flex items-center justify-between">
+      <header>
         <h1 className="text-xl font-bold text-text">Календарь</h1>
+        <p className="mt-1 text-sm text-muted">
+          Всего без энергетика: {total} {dayWord(total)}
+        </p>
       </header>
 
       <div className="flex items-center justify-between">

@@ -6,66 +6,95 @@ interface Props {
   streak: number
 }
 
-/** Интенсивность огонька растёт с серией. */
+/** Интенсивность и цвет огонька растут с серией. */
 function level(streak: number) {
-  if (streak <= 0) return { size: 88, color: '#5b4a7a', glow: 0.0, label: 'погас' }
-  if (streak < 3) return { size: 100, color: '#c9a15e', glow: 0.25, label: 'разгорается' }
-  if (streak < 7) return { size: 116, color: '#e8924a', glow: 0.4, label: 'горит' }
-  if (streak < 30) return { size: 132, color: '#f0a35e', glow: 0.55, label: 'жарко' }
-  return { size: 148, color: '#ffb86b', glow: 0.75, label: 'пылает' }
+  if (streak <= 0)
+    return { size: 176, outer: '#5b4a7a', inner: '#7a6699', glow: 0, alive: false }
+  if (streak < 3)
+    return { size: 184, outer: '#e0843a', inner: '#ffd27a', glow: 0.3, alive: true }
+  if (streak < 7)
+    return { size: 196, outer: '#ec7a2c', inner: '#ffd166', glow: 0.42, alive: true }
+  if (streak < 30)
+    return { size: 208, outer: '#f5872f', inner: '#ffdf8a', glow: 0.55, alive: true }
+  return { size: 220, outer: '#ff7a1a', inner: '#fff0a8', glow: 0.7, alive: true }
 }
 
 export default function StreakFlame({ streak }: Props) {
   const lv = level(streak)
-  const alive = streak > 0
+  const { alive } = lv
 
   return (
     <div className="flex flex-col items-center">
-      <div className="relative flex items-center justify-center">
+      <div
+        className="relative flex items-center justify-center"
+        style={{ width: lv.size, height: lv.size }}
+      >
+        {/* свечение */}
         {alive && (
           <motion.div
             className="absolute rounded-full"
             style={{
-              width: lv.size * 1.7,
-              height: lv.size * 1.7,
-              background: `radial-gradient(circle, rgba(240,163,94,${lv.glow}) 0%, transparent 70%)`,
+              width: lv.size * 1.5,
+              height: lv.size * 1.5,
+              background: `radial-gradient(circle, rgba(255,150,60,${lv.glow}) 0%, transparent 68%)`,
             }}
-            animate={{ scale: [1, 1.08, 1], opacity: [0.8, 1, 0.8] }}
-            transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
+            animate={{ scale: [1, 1.12, 0.97, 1.08, 1], opacity: [0.7, 1, 0.8, 1, 0.7] }}
+            transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
           />
         )}
+
+        {/* внешнее пламя */}
         <motion.div
+          className="absolute"
           animate={
             alive
-              ? { scale: [1, 1.05, 0.98, 1], rotate: [0, -2, 2, 0] }
-              : { scale: 1 }
+              ? { scale: [1, 1.04, 0.99, 1.05, 1], rotate: [0, -2.5, 1.5, -1, 0], y: [0, -3, 1, -2, 0] }
+              : {}
           }
-          transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
+          transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
         >
           <Flame
             size={lv.size}
-            color={lv.color}
-            fill={alive ? lv.color : 'transparent'}
-            strokeWidth={1.4}
-            style={{ filter: alive ? 'drop-shadow(0 0 14px rgba(240,163,94,0.5))' : 'none' }}
+            color={lv.outer}
+            fill={lv.outer}
+            strokeWidth={1}
+            style={{ filter: alive ? 'drop-shadow(0 0 22px rgba(255,140,50,0.55))' : 'none' }}
           />
+        </motion.div>
+
+        {/* внутреннее (яркое) пламя */}
+        {alive && (
+          <motion.div
+            className="absolute"
+            style={{ marginTop: lv.size * 0.16 }}
+            animate={{ scale: [1, 1.08, 0.95, 1.06, 1], rotate: [0, 2, -2, 1, 0] }}
+            transition={{ duration: 1.3, repeat: Infinity, ease: 'easeInOut' }}
+          >
+            <Flame size={lv.size * 0.62} color={lv.inner} fill={lv.inner} strokeWidth={0} />
+          </motion.div>
+        )}
+
+        {/* цифра серии внутри пламени */}
+        <motion.div
+          key={streak}
+          initial={{ scale: 0.5, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: 'spring', damping: 13, stiffness: 300 }}
+          className="absolute font-display font-bold leading-none"
+          style={{
+            top: '52%',
+            fontSize: lv.size * 0.3,
+            color: alive ? '#fff' : '#cdbce8',
+            textShadow: alive ? '0 2px 12px rgba(120,40,0,0.6)' : 'none',
+          }}
+        >
+          {streak}
         </motion.div>
       </div>
 
-      <motion.div
-        key={streak}
-        initial={{ scale: 0.6, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ type: 'spring', damping: 14, stiffness: 280 }}
-        className="-mt-2 text-center"
-      >
-        <div className="font-display text-6xl font-bold tracking-tight text-text">{streak}</div>
-        <div className="mt-1 text-sm text-muted">
-          {streak === 0
-            ? 'начни серию сегодня'
-            : `${streak} ${dayWord(streak)} подряд`}
-        </div>
-      </motion.div>
+      <div className="mt-1 text-sm text-muted">
+        {streak === 0 ? 'начни серию сегодня' : `${dayWord(streak)} подряд`}
+      </div>
     </div>
   )
 }

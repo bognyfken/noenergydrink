@@ -6,7 +6,6 @@ import { todayKey } from '../lib/date'
 import { motivationFor } from '../lib/motivation'
 import StreakFlame from '../components/today/StreakFlame'
 import PrimaryButton from '../components/today/PrimaryButton'
-import StatsRow from '../components/today/StatsRow'
 import MotivationCard from '../components/today/MotivationCard'
 import Sheet from '../components/ui/Sheet'
 
@@ -16,30 +15,29 @@ export default function TodayScreen() {
   const setDay = useStore((s) => s.setDay)
   const session = useStore((s) => s.session)
   const logout = useStore((s) => s.logout)
-  const { current, best, total } = useStreak()
+  const { current } = useStreak()
   const [settingsOpen, setSettingsOpen] = useState(false)
 
   const seed = new Date().getDate()
   const motivation = motivationFor(current, seed)
 
   return (
-    <div className="flex flex-col gap-7 pt-6">
-      <header className="relative flex items-center justify-center pt-1">
-        <h1 className="text-2xl font-bold text-text">Нет энергетикам</h1>
+    <div className="flex flex-col gap-8 pt-6">
+      <header className="flex items-center gap-2.5">
+        <img src="/logo.png" alt="" className="h-9 w-9 rounded-xl" />
+        <h1 className="flex-1 text-xl font-bold text-text">Нет энергетикам</h1>
         <button
           onClick={() => setSettingsOpen(true)}
-          className="tap absolute right-0 flex items-center justify-center text-muted"
-          aria-label="профиль"
+          className="tap flex items-center justify-center text-muted"
+          aria-label="настройки"
         >
           <Settings size={22} />
         </button>
       </header>
 
-      <section className="pt-2">
+      <section className="pt-4">
         <StreakFlame streak={current} />
       </section>
-
-      <StatsRow total={total} current={current} best={best} />
 
       <PrimaryButton
         status={status}
@@ -67,7 +65,7 @@ export default function TodayScreen() {
             }}
             className="tap flex items-center justify-center gap-2 rounded-2xl border border-white/10 py-3.5 font-semibold text-drank"
           >
-            <LogOut size={18} /> Выйти / сменить профиль
+            <LogOut size={18} /> Сменить профиль
           </button>
         </div>
       </Sheet>

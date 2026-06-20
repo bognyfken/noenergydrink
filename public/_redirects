@@ -1,0 +1,3 @@
+# Cloudflare Pages: SPA-фолбэк. Все не-API маршруты отдают index.html (клиентский роутинг).
+# Pages Functions (functions/api/*) матчатся раньше статики/редиректов, поэтому /api/chat не перехватывается.
+/*    /index.html   200

@@ -80,6 +80,14 @@ export const useStore = create<AppState>((set, get) => ({
       if (!cur || a.unlockedAt < cur.unlockedAt) unlocked[a.id] = a
     }
 
+    // досылаем недостающие ачивки в обе стороны (как и записи дней)
+    const localAchMap = new Map(localAch.map((a) => [a.id, a]))
+    const cloudAchMap = new Map(cloudAch.map((a) => [a.id, a]))
+    for (const a of Object.values(unlocked)) {
+      if (!localAchMap.has(a.id)) void putUnlocked(a)
+      if (!cloudAchMap.has(a.id)) void cloudUpsertAchievement(a)
+    }
+
     set({ entries, unlocked, hydrated: true })
     get()._reconcileAchievements()
   },

@@ -9,7 +9,7 @@
 // Без экрана логина: один логический пользователь, фиксированный USER_ID.
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
-import type { DayEntry, UnlockedAchievement } from './types'
+import type { ChatMessage, ChatRole, DayEntry, UnlockedAchievement } from './types'
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
@@ -134,4 +134,65 @@ export async function cloudUpsertAchievement(a: UnlockedAchievement): Promise<vo
     { onConflict: 'user_id,id' },
   )
   if (error) console.warn('[supabase] upsert achievement:', error.message)
+}
+
+// ── Сообщения чата ─────────────────────────────────────────────────────────
+
+export async function cloudFetchMessages(): Promise<ChatMessage[]> {
+  if (!supabase) return []
+  const { data, error } = await supabase
+    .from('messages')
+    .select('id, role, content, created_at')
+    .eq('user_id', USER_ID)
+    .order('created_at')
+  if (error) {
+    console.warn('[supabase] fetch messages:', error.message)
+    return []
+  }
+  return (data ?? []).map((r) => ({
+    id: r.id as string,
+    role: r.role as ChatRole,
+    content: r.content as string,
+    createdAt: new Date(r.created_at as string).getTime(),
+  }))
+}
+
+export async function cloudUpsertMessage(m: ChatMessage): Promise<void> {
+  if (!supabase) return
+  const { error } = await supabase.from('messages').upsert(
+    {
+      user_id: USER_ID,
+      id: m.id,
+      role: m.role,
+      content: m.content,
+      created_at: new Date(m.createdAt).toISOString(),
+    },
+    { onConflict: 'id' },
+  )
+  if (error) console.warn('[supabase] upsert message:', error.message)
+}
+
+// ── Мета (память помощника, флаги, кеш генерации) ────────────────────────────
+
+export async function cloudFetchMeta<T>(key: string): Promise<T | undefined> {
+  if (!supabase) return undefined
+  const { data, error } = await supabase
+    .from('meta')
+    .select('value')
+    .eq('user_id', USER_ID)
+    .eq('key', key)
+    .maybeSingle()
+  if (error) {
+    console.warn('[supabase] fetch meta:', error.message)
+    return undefined
+  }
+  return (data?.value as T | undefined) ?? undefined
+}
+
+export async function cloudUpsertMeta(key: string, value: unknown): Promise<void> {
+  if (!supabase) return
+  const { error } = await supabase
+    .from('meta')
+    .upsert({ user_id: USER_ID, key, value }, { onConflict: 'user_id,key' })
+  if (error) console.warn('[supabase] upsert meta:', error.message)
 }

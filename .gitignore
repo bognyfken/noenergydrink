@@ -44,3 +44,10 @@ coverage/
 # Playwright MCP артефакты
 .playwright-mcp/
 *.local.png
+
+# Python-кеш скриптов нарезки ассетов
+__pycache__/
+*.pyc
+
+# TS build info
+*.tsbuildinfo

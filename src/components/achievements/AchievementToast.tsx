@@ -27,10 +27,10 @@ export default function AchievementToast() {
           style={{ width: 'calc(100% - 32px)' }}
           onClick={consume}
         >
-          <span className="text-3xl">🔥</span>
+          <span className="text-3xl">{ach.secret ? '✨' : '🔥'}</span>
           <div>
             <div className="text-sm font-bold text-text">
-              Награда: {ach.title}!
+              {ach.secret ? 'Секретная награда' : 'Награда'}: {ach.title}!
             </div>
             <div className="text-xs text-muted">{ach.description}</div>
           </div>

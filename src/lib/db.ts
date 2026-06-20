@@ -60,3 +60,28 @@ export async function getUnlocked(): Promise<UnlockedAchievement[]> {
 export async function putUnlocked(a: UnlockedAchievement): Promise<void> {
   await db().achievements.put(a)
 }
+
+// ── Сообщения чата с Кабанёнком ──────────────────────────────────────────
+
+export async function getAllMessages(): Promise<ChatMessage[]> {
+  return db().messages.orderBy('createdAt').toArray()
+}
+
+export async function putMessage(m: ChatMessage): Promise<void> {
+  await db().messages.put(m)
+}
+
+export async function clearMessages(): Promise<void> {
+  await db().messages.clear()
+}
+
+// ── Произвольные мета-настройки (память, флаги, кеш генерации) ─────────────
+
+export async function getMeta<T>(key: string): Promise<T | undefined> {
+  const row = await db().meta.get(key)
+  return row?.value as T | undefined
+}
+
+export async function putMeta(key: string, value: unknown): Promise<void> {
+  await db().meta.put({ key, value })
+}

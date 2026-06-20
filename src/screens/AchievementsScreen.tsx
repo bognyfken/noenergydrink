@@ -1,5 +1,15 @@
 import { motion } from 'framer-motion'
-import { Crown, Heart, Lock, Sigma, Trophy } from 'lucide-react'
+import {
+  CalendarHeart,
+  CheckCircle2,
+  Flame,
+  Heart,
+  Lock,
+  Pencil,
+  Sigma,
+  Sparkles,
+  Trophy,
+} from 'lucide-react'
 import {
   achievementImage,
   ACHIEVEMENTS,
@@ -35,13 +45,31 @@ export default function AchievementsScreen() {
 function FallbackIcon({ def, open }: { def: AchievementDef; open: boolean }) {
   const color = open ? '#cdb4f6' : '#6b5d86'
   const size = 30
-  if (def.kind === 'total') return <Sigma size={size} color={color} />
-  if (def.kind === 'comeback') return <Heart size={size} color={color} fill={open ? color : 'none'} />
-  return <Crown size={size} color={color} /> // длинные серии без арта (полгода/год)
+  // секрет ещё не открыт — не выдаём категорию, показываем загадочную искру
+  if (def.secret && !open) return <Sparkles size={size} color={color} />
+  switch (def.category) {
+    case 'total':
+      return <Sigma size={size} color={color} />
+    case 'comeback':
+      return <Heart size={size} color={color} fill={open ? color : 'none'} />
+    case 'calendar':
+      return <CalendarHeart size={size} color={color} />
+    case 'logging':
+      return <CheckCircle2 size={size} color={color} />
+    case 'notes':
+      return <Pencil size={size} color={color} />
+    default:
+      return <Flame size={size} color={color} /> // длинные серии без арта
+  }
 }
 
 function BadgeCard({ def, open, index }: { def: AchievementDef; open: boolean; index: number }) {
   const img = achievementImage(def)
+  const secretLocked = !!def.secret && !open
+  let caption: string
+  if (open) caption = def.description
+  else if (secretLocked) caption = 'Секретная награда — откроется сама 💜'
+  else caption = def.hint
 
   return (
     <motion.div
@@ -79,14 +107,12 @@ function BadgeCard({ def, open, index }: { def: AchievementDef; open: boolean; i
         )}
       </div>
       <div className="flex items-center gap-1 text-sm font-bold text-text">
-        {open && def.kind === 'streak' && def.goal >= 30 && (
+        {open && def.category === 'streak' && (def.goal ?? 0) >= 30 && (
           <Trophy size={13} className="text-lavender" />
         )}
-        {def.title}
+        {secretLocked ? '???' : def.title}
       </div>
-      <div className="text-[11px] leading-snug text-muted">
-        {open ? def.description : def.hint}
-      </div>
+      <div className="text-[11px] leading-snug text-muted">{caption}</div>
     </motion.div>
   )
 }

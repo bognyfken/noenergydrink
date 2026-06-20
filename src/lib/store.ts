@@ -464,8 +464,12 @@ export const useStore = create<AppState>((set, get) => ({
 
       const actions: ToolAction[] = []
       if (reply.tool_calls?.length) {
+        // GLM часто отдаёт тёплый текст ВМЕСТЕ с вызовом инструмента — тогда
+        // второй запрос не нужен (экономим целый round-trip → опрос вдвое быстрее).
+        const inlineText = (reply.content ?? '').trim()
+        const replyWithCalls = reply
         const toolResults: AiMessage[] = []
-        for (const call of reply.tool_calls) {
+        for (const call of replyWithCalls.tool_calls ?? []) {
           const { result, action } = await runTool(call, get, set)
           toolResults.push({
             role: 'tool',
@@ -475,12 +479,14 @@ export const useStore = create<AppState>((set, get) => ({
           })
           if (action) actions.push(action)
         }
-        // финальный тёплый ответ с учётом выполненного (контекст уже обновлён)
-        reply = await chatAfterTools(
-          buildContext(get().entries, get().memory),
-          [...history, reply],
-          toolResults,
-        )
+        // догоняемся вторым вызовом, ТОЛЬКО если текста сразу не дали
+        if (!inlineText) {
+          reply = await chatAfterTools(
+            buildContext(get().entries, get().memory),
+            [...history, replyWithCalls],
+            toolResults,
+          )
+        }
       }
 
       const botText = (reply.content ?? '').trim() || 'Я рядом 💜'

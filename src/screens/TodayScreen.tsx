@@ -25,7 +25,7 @@ export default function TodayScreen() {
   return (
     <div className="flex flex-col gap-8 pt-6">
       <header className="flex items-center gap-2.5">
-        <img src="/logo.png" alt="" className="h-9 w-9 rounded-xl" />
+        <img src="/logo.png" alt="" className="h-9 w-9 rounded-2xl" />
         <h1 className="flex-1 text-xl font-bold text-text">Нет энергетикам</h1>
         <button
           onClick={() => setSettingsOpen(true)}

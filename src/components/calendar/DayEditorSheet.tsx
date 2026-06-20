@@ -110,7 +110,7 @@ function StatusButton({
       className={[
         'tap flex flex-col items-center gap-1.5 rounded-2xl py-4 text-sm font-semibold transition-all',
         className,
-        active ? 'ring-2' : 'opacity-70 ring-0',
+        active ? 'ring-2 ring-inset' : 'opacity-70 ring-0',
       ].join(' ')}
     >
       {icon}

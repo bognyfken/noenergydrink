@@ -1,23 +1,33 @@
 import { motion } from 'framer-motion'
-import {
-  CalendarHeart,
-  CheckCircle2,
-  Flame,
-  Heart,
-  Lock,
-  Pencil,
-  Sigma,
-  Sparkles,
-  Trophy,
-} from 'lucide-react'
-import {
-  achievementImage,
-  ACHIEVEMENTS,
-  type AchievementDef,
-} from '../lib/achievements'
+import { Lock, Trophy } from 'lucide-react'
+import { ACHIEVEMENTS, type AchievementDef } from '../lib/achievements'
 import { useStore } from '../lib/store'
 import { useStreak } from '../hooks/useStreak'
 import { dayWord } from '../lib/plural'
+
+// Эмодзи под каждую ачивку (временно, пока не вернём картинки-медали).
+const EMOJI: Record<string, string> = {
+  // серия подряд
+  d1: '🔥', d3: '🔥', d7: '🔥', d14: '🔥', d21: '🌱', d30: '🌿',
+  d60: '🔥', d90: '🌳', d100: '💯', d180: '🏅', d365: '👑',
+  // всего чистых дней
+  total7: '⭐', total30: '🌟', total50: '🪙', total100: '💎', total200: '💠', total365: '🏆',
+  // возвращение после срыва
+  comeback: '💗', comeback3: '💪',
+  // календарные узоры
+  weekend1: '😌', weekend4: '🛋️', week_cal: '📅', month_cal: '📆',
+  month20: '🗓️', monday4: '☕', seasons: '🍂', newyear: '🎉',
+  // дисциплина учёта
+  log7: '✅', log30: '📋', marked50: '✍️',
+  // заметки
+  note1: '📝', note10: '📖',
+  // секретные
+  leapday: '🗓️', friday13: '🐈‍⬛', night_owl: '🦉', second_wind: '🌬️', phoenix: '🦅',
+}
+
+function emojiFor(def: AchievementDef): string {
+  return EMOJI[def.id] ?? '🏅'
+}
 
 export default function AchievementsScreen() {
   const unlocked = useStore((s) => s.unlocked)
@@ -42,29 +52,7 @@ export default function AchievementsScreen() {
   )
 }
 
-function FallbackIcon({ def, open }: { def: AchievementDef; open: boolean }) {
-  const color = open ? '#cdb4f6' : '#6b5d86'
-  const size = 30
-  // секрет ещё не открыт — не выдаём категорию, показываем загадочную искру
-  if (def.secret && !open) return <Sparkles size={size} color={color} />
-  switch (def.category) {
-    case 'total':
-      return <Sigma size={size} color={color} />
-    case 'comeback':
-      return <Heart size={size} color={color} fill={open ? color : 'none'} />
-    case 'calendar':
-      return <CalendarHeart size={size} color={color} />
-    case 'logging':
-      return <CheckCircle2 size={size} color={color} />
-    case 'notes':
-      return <Pencil size={size} color={color} />
-    default:
-      return <Flame size={size} color={color} /> // длинные серии без арта
-  }
-}
-
 function BadgeCard({ def, open, index }: { def: AchievementDef; open: boolean; index: number }) {
-  const img = achievementImage(def)
   const secretLocked = !!def.secret && !open
   let caption: string
   if (open) caption = def.description
@@ -84,22 +72,14 @@ function BadgeCard({ def, open, index }: { def: AchievementDef; open: boolean; i
       ].join(' ')}
     >
       <div className="relative flex h-16 w-16 items-center justify-center">
-        {img ? (
-          <img
-            src={img}
-            alt=""
-            className={['h-16 w-16 object-contain', open ? '' : 'opacity-30 grayscale'].join(' ')}
-          />
-        ) : (
-          <div
-            className={[
-              'flex h-16 w-16 items-center justify-center rounded-full',
-              open ? 'bg-primary/25' : 'bg-unmarked',
-            ].join(' ')}
-          >
-            <FallbackIcon def={def} open={open} />
-          </div>
-        )}
+        <div
+          className={[
+            'flex h-16 w-16 items-center justify-center rounded-full text-3xl',
+            open ? 'bg-clean/25' : 'bg-unmarked opacity-40 grayscale',
+          ].join(' ')}
+        >
+          {secretLocked ? '❓' : emojiFor(def)}
+        </div>
         {!open && (
           <span className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-bg/90 ring-1 ring-white/10">
             <Lock size={13} className="text-muted" />

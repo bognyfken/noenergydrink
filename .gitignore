@@ -38,3 +38,5 @@ wiki/sources/*
 # Тесты/кеш
 coverage/
 .vite/
+
+.vercel

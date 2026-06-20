@@ -2,10 +2,11 @@
 // Правки идут оптимистично в стор + Dexie (мгновенно, офлайн) и пушатся в Supabase.
 
 import { create } from 'zustand'
-import type { ChatMessage, DayEntry, DayStatus, UnlockedAchievement } from './types'
+import type { ChatMessage, Conversation, DayEntry, DayStatus, UnlockedAchievement } from './types'
 import {
   clearMessages,
   deleteEntry as dexieDelete,
+  deleteMessagesByConversation,
   getAllEntries,
   getAllMessages,
   getMeta,
@@ -18,6 +19,7 @@ import {
 } from './db'
 import {
   cloudDeleteEntry,
+  cloudDeleteMessagesByConversation,
   cloudFetchAchievements,
   cloudFetchEntries,
   cloudFetchMessages,
@@ -49,10 +51,15 @@ import { addToMemory, EMPTY_MEMORY, type AssistantMemory } from './memory'
 import { buildContext, chatMessagesToAi } from './assistant'
 import { humanDay, todayKey } from './date'
 
-// Ключи meta-хранилища (память помощника, флаги, кеш генерации).
+// Ключи meta-хранилища (память помощника, флаги, кеш генерации, беседы).
 const META_MEMORY = 'assistant_memory'
 const META_GREETING = 'greeting_enabled'
 const META_WARM = 'warm'
+const META_CONVERSATIONS = 'conversations'
+
+const DEFAULT_CONV_TITLE = 'Новый чат'
+/** Беседа, в которую сваливаются старые сообщения без conversationId. */
+const LEGACY_CONV_ID = 'legacy'
 
 /** Действие Кабанёнка с днём — для плашки «отменить». */
 export interface ToolAction {
@@ -78,8 +85,12 @@ interface AppState {
   justUnlocked: string[]
 
   // ── Кабанёнок (ИИ-помощник) ──────────────────────────────────────────────
-  /** история чата (источник правды для UI) */
+  /** все сообщения всех бесед (UI фильтрует по активной беседе) */
   messages: ChatMessage[]
+  /** беседы (история чатов), новые сверху */
+  conversations: Conversation[]
+  /** активная беседа (какую показываем) */
+  activeConversationId: string | null
   /** идёт обращение к помощнику */
   chatBusy: boolean
   /** последняя ошибка обращения (для мягкого сообщения в UI) */
@@ -112,6 +123,14 @@ interface AppState {
   sendMessage: (text: string) => Promise<void>
   /** дописать заметку к дню (merge, не затирая прежнюю). */
   appendNote: (date: string, text: string) => Promise<void>
+  /** создать новую беседу и сделать её активной; вернуть её id. */
+  newConversation: () => string
+  /** переключиться на беседу. */
+  switchConversation: (id: string) => void
+  /** переименовать беседу. */
+  renameConversation: (id: string, title: string) => Promise<void>
+  /** удалить беседу со всеми её сообщениями. */
+  deleteConversation: (id: string) => Promise<void>
   /** очистить историю чата (локально). */
   clearChat: () => Promise<void>
   /** включить/выключить приветствие при открытии. */
@@ -159,6 +178,46 @@ function persistWarm(get: () => AppState): void {
   const payload = { current: warm, next: warmNext }
   void putMeta(META_WARM, payload)
   void cloudUpsertMeta(META_WARM, payload)
+}
+
+/** Объединить беседы из двух источников (по id, новее побеждает), новые сверху. */
+function mergeConversations(a: Conversation[], b: Conversation[]): Conversation[] {
+  const map = new Map<string, Conversation>()
+  for (const c of a) map.set(c.id, c)
+  for (const c of b) {
+    const cur = map.get(c.id)
+    if (!cur || c.updatedAt >= cur.updatedAt) map.set(c.id, c)
+  }
+  return [...map.values()].sort((x, y) => y.updatedAt - x.updatedAt)
+}
+
+/** Сохранить список бесед (локально + в облако). */
+function persistConversations(get: () => AppState): void {
+  const list = get().conversations
+  void putMeta(META_CONVERSATIONS, list)
+  void cloudUpsertMeta(META_CONVERSATIONS, list)
+}
+
+/** Обновить беседу: первый раз — заголовок по сообщению, всегда — время активности. */
+function touchConversation(
+  get: () => AppState,
+  set: (partial: Partial<AppState>) => void,
+  id: string,
+  userText: string,
+): void {
+  const list = get().conversations
+  const idx = list.findIndex((c) => c.id === id)
+  if (idx < 0) return
+  const cur = list[idx]
+  const title =
+    cur.title === DEFAULT_CONV_TITLE && userText.trim()
+      ? userText.trim().slice(0, 40)
+      : cur.title
+  const next = [...list]
+  next[idx] = { ...cur, title, updatedAt: Date.now() }
+  next.sort((x, y) => y.updatedAt - x.updatedAt)
+  set({ conversations: next })
+  persistConversations(get)
 }
 
 /** Исполнить один вызов инструмента Кабанёнка → текст-результат для модели + действие для плашки. */
@@ -223,6 +282,8 @@ export const useStore = create<AppState>((set, get) => ({
   hydrated: false,
   justUnlocked: [],
   messages: [],
+  conversations: [],
+  activeConversationId: null,
   chatBusy: false,
   chatError: null,
   memory: EMPTY_MEMORY,
@@ -246,6 +307,8 @@ export const useStore = create<AppState>((set, get) => ({
       hydrated: false,
       justUnlocked: [],
       messages: [],
+      conversations: [],
+      activeConversationId: null,
       chatBusy: false,
       chatError: null,
       memory: EMPTY_MEMORY,
@@ -268,6 +331,8 @@ export const useStore = create<AppState>((set, get) => ({
       hydrated: false,
       justUnlocked: [],
       messages: [],
+      conversations: [],
+      activeConversationId: null,
       chatBusy: false,
       chatError: null,
       memory: EMPTY_MEMORY,
@@ -369,11 +434,18 @@ export const useStore = create<AppState>((set, get) => ({
     const clean = text.trim()
     if (!clean || get().chatBusy) return
 
+    // гарантируем активную беседу (создаём, если её нет)
+    let convId = get().activeConversationId
+    if (!convId || !get().conversations.some((c) => c.id === convId)) {
+      convId = get().newConversation()
+    }
+
     const userMsg: ChatMessage = {
       id: crypto.randomUUID(),
       role: 'user',
       content: clean,
       createdAt: Date.now(),
+      conversationId: convId,
     }
     set((s) => ({
       messages: [...s.messages, userMsg],
@@ -383,9 +455,11 @@ export const useStore = create<AppState>((set, get) => ({
     }))
     void putMessage(userMsg)
     void cloudUpsertMessage(userMsg)
+    touchConversation(get, set, convId, clean)
 
     try {
-      const history = chatMessagesToAi(get().messages)
+      // модели отправляем только сообщения активной беседы
+      const history = chatMessagesToAi(get().messages.filter((m) => m.conversationId === convId))
       let reply = await chat(buildContext(get().entries, get().memory), history)
 
       const actions: ToolAction[] = []
@@ -415,11 +489,13 @@ export const useStore = create<AppState>((set, get) => ({
         role: 'assistant',
         content: botText,
         createdAt: Date.now(),
+        conversationId: convId,
         toolResult: actions.length ? actions.map((a) => a.label).join(', ') : undefined,
       }
       set((s) => ({ messages: [...s.messages, botMsg], lastToolActions: actions }))
       void putMessage(botMsg)
       void cloudUpsertMessage(botMsg)
+      touchConversation(get, set, convId, clean)
     } catch (e) {
       const msg =
         e instanceof KabanenokError ? e.message : 'Ой, что-то пошло не так. Попробуй ещё раз 💜'
@@ -443,9 +519,51 @@ export const useStore = create<AppState>((set, get) => ({
     void cloudUpsertEntry(entry)
   },
 
+  newConversation: () => {
+    const now = Date.now()
+    const conv: Conversation = {
+      id: crypto.randomUUID(),
+      title: DEFAULT_CONV_TITLE,
+      createdAt: now,
+      updatedAt: now,
+    }
+    set((s) => ({
+      conversations: [conv, ...s.conversations],
+      activeConversationId: conv.id,
+      chatError: null,
+      lastToolActions: [],
+    }))
+    persistConversations(get)
+    return conv.id
+  },
+
+  switchConversation: (id) => set({ activeConversationId: id, chatError: null, lastToolActions: [] }),
+
+  renameConversation: async (id, title) => {
+    const t = title.trim() || 'Без названия'
+    set((s) => ({
+      conversations: s.conversations.map((c) => (c.id === id ? { ...c, title: t } : c)),
+    }))
+    persistConversations(get)
+  },
+
+  deleteConversation: async (id) => {
+    set((s) => {
+      const conversations = s.conversations.filter((c) => c.id !== id)
+      const messages = s.messages.filter((m) => m.conversationId !== id)
+      const activeConversationId =
+        s.activeConversationId === id ? (conversations[0]?.id ?? null) : s.activeConversationId
+      return { conversations, messages, activeConversationId }
+    })
+    void deleteMessagesByConversation(id)
+    void cloudDeleteMessagesByConversation(id)
+    persistConversations(get)
+  },
+
   clearChat: async () => {
-    set({ messages: [], chatError: null, lastToolActions: [] })
+    set({ messages: [], conversations: [], activeConversationId: null, chatError: null, lastToolActions: [] })
     void clearMessages()
+    persistConversations(get)
   },
 
   setGreetingEnabled: async (on) => {
@@ -508,10 +626,12 @@ export const useStore = create<AppState>((set, get) => ({
   dismissToolActions: () => set({ lastToolActions: [] }),
 
   _loadAssistant: async () => {
-    const [msgsLocal, msgsCloud, memLocal, memCloud, greetLocal, greetCloud, warmLocal] =
+    const [msgsLocal, msgsCloud, convLocal, convCloud, memLocal, memCloud, greetLocal, greetCloud, warmLocal] =
       await Promise.all([
         getAllMessages(),
         cloudFetchMessages(),
+        getMeta<Conversation[]>(META_CONVERSATIONS),
+        cloudFetchMeta<Conversation[]>(META_CONVERSATIONS),
         getMeta<AssistantMemory>(META_MEMORY),
         cloudFetchMeta<AssistantMemory>(META_MEMORY),
         getMeta<boolean>(META_GREETING),
@@ -531,6 +651,31 @@ export const useStore = create<AppState>((set, get) => ({
       if (!cloudIds.has(m.id)) void cloudUpsertMessage(m)
     }
 
+    // беседы: объединяем локальные и облачные
+    let conversations = mergeConversations(convLocal ?? [], convCloud ?? [])
+
+    // миграция: старые сообщения без conversationId → в одну общую беседу «Беседа»
+    const orphans = messages.filter((m) => !m.conversationId)
+    if (orphans.length > 0) {
+      if (!conversations.some((c) => c.id === LEGACY_CONV_ID)) {
+        conversations = [
+          {
+            id: LEGACY_CONV_ID,
+            title: 'Беседа',
+            createdAt: orphans[0].createdAt,
+            updatedAt: orphans[orphans.length - 1].createdAt,
+          },
+          ...conversations,
+        ]
+      }
+      for (const m of orphans) {
+        m.conversationId = LEGACY_CONV_ID
+        void putMessage(m)
+        void cloudUpsertMessage(m)
+      }
+    }
+    conversations.sort((a, b) => b.updatedAt - a.updatedAt)
+
     // память: берём более свежую, недостающую сторону подтягиваем
     const memory = pickNewerMemory(memLocal, memCloud)
     if (memLocal || memCloud) {
@@ -540,11 +685,20 @@ export const useStore = create<AppState>((set, get) => ({
 
     set({
       messages,
+      conversations,
+      activeConversationId: conversations[0]?.id ?? null,
       memory,
       greetingEnabled: greetCloud ?? greetLocal ?? true,
       warm: warmLocal?.current ?? null,
       warmNext: warmLocal?.next ?? null,
     })
+
+    // синхронизировать беседы обратно, если был мёрдж/миграция
+    const changed =
+      orphans.length > 0 ||
+      (convLocal?.length ?? 0) !== conversations.length ||
+      (convCloud?.length ?? 0) !== conversations.length
+    if (changed) persistConversations(get)
   },
 
   // ── приватное: пересчёт открытых ачивок ───────────────────────────────

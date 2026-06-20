@@ -28,14 +28,25 @@ export interface UnlockedAchievement {
 
 export type ChatRole = 'user' | 'assistant' | 'system' | 'tool'
 
-/** Сообщение чата с ИИ-помощником (этап 3). */
+/** Сообщение чата с ИИ-помощником. */
 export interface ChatMessage {
   id: string
   role: ChatRole
   content: string
   createdAt: number
+  /** к какой беседе относится (для истории чатов). Старые сообщения без него
+   * мигрируются в одну общую беседу при загрузке. */
+  conversationId?: string
   /** короткое подтверждение выполненного действия ИИ (например, «Записала заметку»). */
   toolResult?: string
+}
+
+/** Беседа с Кабанёнком — отдельный диалог в истории чатов. */
+export interface Conversation {
+  id: string
+  title: string
+  createdAt: number
+  updatedAt: number
 }
 
 /** Произвольные мета-настройки (key-value). */

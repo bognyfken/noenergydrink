@@ -142,7 +142,7 @@ export async function cloudFetchMessages(): Promise<ChatMessage[]> {
   if (!supabase) return []
   const { data, error } = await supabase
     .from('messages')
-    .select('id, role, content, created_at')
+    .select('id, role, content, created_at, conversation_id')
     .eq('user_id', USER_ID)
     .order('created_at')
   if (error) {
@@ -154,6 +154,7 @@ export async function cloudFetchMessages(): Promise<ChatMessage[]> {
     role: r.role as ChatRole,
     content: r.content as string,
     createdAt: new Date(r.created_at as string).getTime(),
+    conversationId: (r.conversation_id as string | null) ?? undefined,
   }))
 }
 
@@ -166,10 +167,21 @@ export async function cloudUpsertMessage(m: ChatMessage): Promise<void> {
       role: m.role,
       content: m.content,
       created_at: new Date(m.createdAt).toISOString(),
+      conversation_id: m.conversationId ?? null,
     },
     { onConflict: 'id' },
   )
   if (error) console.warn('[supabase] upsert message:', error.message)
+}
+
+export async function cloudDeleteMessagesByConversation(conversationId: string): Promise<void> {
+  if (!supabase) return
+  const { error } = await supabase
+    .from('messages')
+    .delete()
+    .eq('user_id', USER_ID)
+    .eq('conversation_id', conversationId)
+  if (error) console.warn('[supabase] delete conversation messages:', error.message)
 }
 
 // ── Мета (память помощника, флаги, кеш генерации) ────────────────────────────

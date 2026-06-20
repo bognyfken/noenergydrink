@@ -75,6 +75,10 @@ export async function clearMessages(): Promise<void> {
   await db().messages.clear()
 }
 
+export async function deleteMessagesByConversation(conversationId: string): Promise<void> {
+  await db().messages.filter((m) => m.conversationId === conversationId).delete()
+}
+
 // ── Произвольные мета-настройки (память, флаги, кеш генерации) ─────────────
 
 export async function getMeta<T>(key: string): Promise<T | undefined> {

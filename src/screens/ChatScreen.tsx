@@ -1,26 +1,35 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Check, RotateCcw, Send } from 'lucide-react'
+import { Check, MessageSquareText, RotateCcw, Send, SquarePen } from 'lucide-react'
 import { useStore } from '../lib/store'
+import ConversationsSheet from '../components/ConversationsSheet'
 
-// Тёплый чат с Кабанёнком. Отправка сообщений, исполнение его действий с днями
-// (через стор), плашка «отменить», состояние «печатает» и мягкие ошибки.
-// При переходе из приветствия (location.state.send) — авто-отправка первой реплики.
+// Тёплый чат с Кабанёнком. История бесед (список/новый/переключение), отправка
+// сообщений, исполнение его действий с днями (через стор), плашка «отменить»,
+// состояние «печатает» и мягкие ошибки. При переходе из приветствия
+// (location.state.send) — авто-отправка первой реплики.
 
 export default function ChatScreen() {
-  const messages = useStore((s) => s.messages)
+  const allMessages = useStore((s) => s.messages)
+  const activeId = useStore((s) => s.activeConversationId)
+  const conversations = useStore((s) => s.conversations)
   const chatBusy = useStore((s) => s.chatBusy)
   const chatError = useStore((s) => s.chatError)
   const lastToolActions = useStore((s) => s.lastToolActions)
   const sendMessage = useStore((s) => s.sendMessage)
+  const newConversation = useStore((s) => s.newConversation)
   const undo = useStore((s) => s.undoLastToolActions)
 
   const [text, setText] = useState('')
+  const [listOpen, setListOpen] = useState(false)
   const bottomRef = useRef<HTMLDivElement | null>(null)
   const location = useLocation()
   const navigate = useNavigate()
   const sentRef = useRef(false)
+
+  const messages = allMessages.filter((m) => m.conversationId === activeId)
+  const title = conversations.find((c) => c.id === activeId)?.title ?? 'Кабанёнок'
 
   // авто-отправка реплики, пришедшей из карточки-приветствия
   useEffect(() => {
@@ -35,7 +44,7 @@ export default function ChatScreen() {
   // держим прокрутку у последнего сообщения
   useLayoutEffect(() => {
     bottomRef.current?.scrollIntoView({ block: 'end' })
-  }, [messages.length, chatBusy, lastToolActions.length])
+  }, [messages.length, chatBusy, lastToolActions.length, activeId])
 
   function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -48,9 +57,28 @@ export default function ChatScreen() {
   const empty = messages.length === 0 && !chatBusy
 
   return (
-    <div className="flex flex-col gap-3 pb-28 pt-4">
+    <div className="flex flex-col gap-3 pb-28">
+      {/* шапка с историей бесед */}
+      <div className="sticky top-0 z-20 -mx-5 flex items-center gap-2 border-b border-white/5 bg-bg/85 px-5 py-3 backdrop-blur-xl">
+        <button
+          onClick={() => setListOpen(true)}
+          aria-label="история бесед"
+          className="tap flex h-9 w-9 items-center justify-center text-muted"
+        >
+          <MessageSquareText size={20} />
+        </button>
+        <div className="min-w-0 flex-1 truncate text-center font-semibold text-text">{title}</div>
+        <button
+          onClick={() => newConversation()}
+          aria-label="новый чат"
+          className="tap flex h-9 w-9 items-center justify-center text-muted"
+        >
+          <SquarePen size={20} />
+        </button>
+      </div>
+
       {empty ? (
-        <div className="flex flex-col items-center gap-3 px-4 pt-12 text-center">
+        <div className="flex flex-col items-center gap-3 px-4 pt-10 text-center">
           <img src="/logo.png" alt="" className="h-16 w-16 rounded-3xl" />
           <h1 className="text-lg font-bold text-text">Привет, я Кабанёнок 💜</h1>
           <p className="max-w-xs text-sm leading-relaxed text-muted">
@@ -143,6 +171,8 @@ export default function ChatScreen() {
           <Send size={18} />
         </button>
       </form>
+
+      <ConversationsSheet open={listOpen} onClose={() => setListOpen(false)} />
     </div>
   )
 }

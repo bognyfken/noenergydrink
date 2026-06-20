@@ -3,5 +3,6 @@
   "framework": "vite",
   "buildCommand": "vite build",
   "outputDirectory": "dist",
-  "rewrites": [{ "source": "/((?!assets/|icons/|.*\\..*).*)", "destination": "/index.html" }]
+  "rewrites": [{ "source": "/((?!assets/|icons/|api/|.*\\..*).*)", "destination": "/index.html" }],
+  "crons": [{ "path": "/api/cron-reminders", "schedule": "0 17 * * *" }]
 }

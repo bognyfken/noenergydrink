@@ -9,6 +9,7 @@ import StreakFlame from '../components/today/StreakFlame'
 import PrimaryButton from '../components/today/PrimaryButton'
 import MotivationCard from '../components/today/MotivationCard'
 import Sheet from '../components/ui/Sheet'
+import ReminderToggle from '../components/ReminderToggle'
 
 export default function TodayScreen() {
   const today = useToday()
@@ -59,6 +60,7 @@ export default function TodayScreen() {
               <div className="text-xs text-muted">Это твой профиль</div>
             </div>
           </div>
+          <ReminderToggle />
           <button
             onClick={() => {
               setSettingsOpen(false)

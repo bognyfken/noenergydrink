@@ -14,6 +14,7 @@ export default defineConfig({
         'icons/apple-touch-icon.png',
         'icons/favicon.svg',
         'can.svg',
+        'push-sw.js',
       ],
       manifest: {
         name: 'Нет энергетикам',
@@ -41,6 +42,8 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
         navigateFallback: '/index.html',
+        // обработчики Web Push (push/notificationclick) — для напоминаний
+        importScripts: ['/push-sw.js'],
         runtimeCaching: [
           // ИИ-чат (этап 3) ходит в сеть; офлайн — деградирует мягко.
           { urlPattern: /\/api\/chat/, handler: 'NetworkOnly' },

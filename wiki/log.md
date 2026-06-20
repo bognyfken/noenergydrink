@@ -131,3 +131,45 @@
   бейджей (крупнее, чистая круглая рамка) и/или арт; это в файлах параллельной сессии.
 - NEXT: чат с Qwen + генерация мотивации (тёплый промпт, обращение по имени, tool-calling заметок);
   довести медали; арт `d21/d90/d180/d365/total*/comeback/...` в `public/achievements/`.
+
+## 2026-06-20 (вечер-6) — ачивки: 32 обычных + 5 секретных, движок на предикатах
+- UPDATED (ачивки): расширены с 12 до **37**. Раньше зависели от 3 сигналов (`best`/`totalClean`/
+  `comeback`) — теперь у каждой предикат `test(s: AchStats)` + `category` (`streak`/`total`/`comeback`/
+  `calendar`/`logging`/`notes`). Новые сигналы в `AchStats` (14+5): выходные, идеальные недели/месяцы,
+  понедельники, охват месяцев, серия учёта, заметки, новый год и др. `src/lib/achievements.ts`,
+  `store._reconcileAchievements` (через `computeAchStats`), `AchievementsScreen` (иконки по категориям),
+  `motivation` (guard под опц. `goal`). См. [[Data Model]] · [[Features]].
+- CREATED (секретные, 5): скрыты как «???» до открытия (флаг `secret`), тост — «Секретная награда» + ✨.
+  Високосный (29 фев) · Пятница 13 · Полуночница (`updatedAt` 00:00–04:59) · Второе дыхание (серия 14+
+  после срыва) · **Феникс** (вернуться после 3+ срывов подряд). Изначально был «Полный круг» (7 дней
+  недели) — по фидбеку заменён на Феникс как менее дублирующий.
+- DECISION: `computeAchStats` разбита на `chronoSignals`/`calendarSignals`/`monthSignals` (когнитивная
+  сложность). Покрыто `achievements.test.ts` — **26 тестов** зелёные, `tsc -b` чистый.
+- LESSON: `markedAtNight` опирается на `updatedAt` (время правки, не создания). Для одноразовой пасхалки
+  ок (награда не снимается), но для честной метки времени отметки нужен отдельный `createdAt`.
+- CREATED: `queries/2026-06-20 промты Nano Banana для бейджей` — базовый стиль + промт на каждый из 37
+  бейджей (claymorphism-монета, палитра проекта). Под арт в `public/achievements/<id>.webp`.
+- NEXT: сгенерить арт по промтам → выставить `hasImage: true`; обдумать `createdAt` для честной ночной отметки.
+
+## 2026-06-20 (вечер-7) — ежедневные пуш-напоминания (Web Push)
+- РАСПРЕДЕЛЕНИЕ: 4 сессии. Эта взяла **напоминания** (другие: чат Qwen / лого+ачивки / новые ачивки).
+- DECISION: на iOS веб-напоминания, когда приложение закрыто, возможны ТОЛЬКО через Web Push и ТОЛЬКО
+  для установленного PWA (на экран «Домой», iOS 16.4+). Значит нужен серверный отправитель.
+- BUILD: VAPID-ключи (public → клиент, private → env Vercel, оба в gitignored `токен от github.txt`).
+  Таблица `push_subscriptions` (endpoint pk, p256dh, auth, did, enabled, reminder_hour) + RLS anon.
+  `src/lib/push.ts` (subscribe/unsubscribe/getPushState — состояния unsupported/needs-install/denied/on/off).
+  `public/push-sw.js` (push/notificationclick) подключён в SW через `workbox.importScripts` (vite.config).
+  `ReminderToggle` в настройках Today. `api/cron-reminders.ts` + `vercel.json` crons `0 17 * * *`
+  (=20:00 МСК, раз в день — совместимо с Hobby), шлёт через `web-push`, чистит мёртвые (404/410).
+- ENV Vercel (production): `VITE_VAPID_PUBLIC`, `VAPID_PRIVATE`, `VAPID_SUBJECT` (mailto). Cron читает
+  Supabase через уже заданные `VITE_SUPABASE_URL`/`ANON_KEY`. Коммит `32f66f2`.
+- SMOKE (прод): `GET /api/cron-reminders` → `{"ok":true,"total":0,"sent":0,"pruned":0}` — функция жива,
+  env читаются, таблица опрашивается, web-push инициализируется. Тумблер «Напоминания» в настройках
+  рендерится (состояние off). Тестовый профиль ТестПуш создан/удалён; в облаке только «Кабаненок».
+- ОГРАНИЧЕНИЕ: реальную доставку пуша автоматизацией не проверить (системный запрос разрешения).
+  Проверять на установленном PWA на айфоне: вкл. тумблер → разрешить уведомления → дождаться 20:00 МСК
+  (или дёрнуть `/api/cron-reminders` вручную) → должно прийти уведомление.
+- NOTE: cron-эндпоинт сейчас открыт (без `CRON_SECRET`) — дёрнуть может кто угодно (вред минимальный:
+  внеплановое «отметь день»). При желании задать `CRON_SECRET` в env Vercel (он сам шлёт Bearer).
+- LESSON: SPA-rewrite в `vercel.json` надо исключать `api/` (иначе `/api/*` уходит в index.html);
+  добавил `api/|` в негативный lookahead. На Hobby cron — не чаще раза в день, поэтому фикс. время 20:00 МСК.

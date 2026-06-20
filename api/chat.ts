@@ -47,7 +47,7 @@ export default async function handler(req: Request): Promise<Response> {
     model: body.model ?? DEFAULT_MODEL,
     messages: body.messages,
     temperature: body.temperature ?? 0.8,
-    max_completion_tokens: body.max_completion_tokens ?? 1024,
+    max_completion_tokens: body.max_completion_tokens ?? 2048,
   }
   if (body.tools) {
     payload.tools = body.tools

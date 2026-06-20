@@ -255,7 +255,9 @@ export async function generateWarmContent(ctx: KabanenokContext): Promise<WarmCo
       { role: 'user', content: WARM_ASK },
     ],
     temperature: 0.95,
-    maxTokens: 400,
+    // GLM 4.7 — «думающая» модель: reasoning съедает ~800 токенов прежде JSON.
+    // Большой запас, чтобы JSON не обрезался (Cerebras быстрый, лишние токены не больно).
+    maxTokens: 2048,
     jsonMode: true,
   })
   const parsed = parseJson<Partial<WarmContent>>(msg.content)

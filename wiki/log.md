@@ -260,3 +260,45 @@
 - DEPLOY: авто-деплой перестал обновлять прод (git-деплой завис UNKNOWN — вероятно, доступ Vercel
   GitHub App сбился после перевода репо в private). Форс прод-деплоя через vercel CLI. Проверка cron→401.
 - TODO/РИСК: восстановить авто-деплой из приватного репо (Vercel GitHub App), иначе релизы вручную.
+
+## 2026-06-21 — мердж UI Кабанёнка в main + статус деплоя
+- MERGE: UI Кабанёнка влит в `main` коммитом **`f3469ad`** (push: `aebaafd..f3469ad`). По факту
+  (`git cat-file`) в `aebaafd` UI НЕ было (только движок + стаб ChatScreen) — несмотря на запись
+  в логе свода. `f3469ad` добавил недостающее: настоящий `ChatScreen`, `GreetingCard`,
+  `GreetingToggle`, интеграцию `TodayScreen`. Чужую незакоммиченную WIP (арт, achievements.ts,
+  AchievementsScreen) НЕ трогал — коммитил только свои 4 файла. `npm run build` зелёный.
+- DEPLOY (заблокирован, как и у свода): git-push дал деплой `f3469ad` в статусе **BLOCKED**
+  (из 20 последних: 15 READY older, 5 BLOCKED recent). Корень — тот же: репо private → Vercel
+  GitHub App без доступа к исходникам → сборка не идёт. Прод сейчас отдаёт старый READY-билд
+  БЕЗ `api/chat` (`/api/chat` → 404), UI Кабанёнка на прод НЕ выкачен.
+- ENV: `CEREBRAS_API_KEY` подтверждён в env Vercel (encrypted, prod+preview+dev) — готов к билду.
+- ЧИНИТЬ ДЕПЛОЙ: либо восстановить Vercel GitHub App для приватного репо (дашборд, на пользователе),
+  либо форс прод-деплой через `vercel CLI` — но он зальёт ТЕКУЩЕЕ рабочее дерево (с чужой WIP),
+  поэтому в одиночку не делал: при 4 активных сессиях это решение пользователя/координации.
+
+## 2026-06-21 — переезд хостинга на Cloudflare Pages + модель Кабанёнка
+- DECISION: ушли с Vercel. Причина — Vercel блокировал ВСЕ прод-деплои: `COMMIT_AUTHOR_REQUIRED`
+  (автор коммитов `hoholocoste@gmail.com` — не GitHub-юзер; владелец Vercel/репо — `bognyfken`).
+  Анти-абьюз Hobby. Переехали на **Cloudflare Pages** (там такого ограничения нет).
+- DEPLOY (Cloudflare): проект Pages **`noenergydrink`** (account `dac5848359ab4d74798b9d572259981e`,
+  токен в env `CLOUDFLARE_API_TOKEN` — он же у manicure). Деплой — **direct upload через wrangler**
+  (`wrangler pages deploy dist`, не git-connect). Прод: **https://noenergydrink.pages.dev** — ЖИВ.
+  - `functions/api/chat.ts` — прокси чата в формате Pages Functions (env вместо process.env).
+  - `public/_redirects` (`/* /index.html 200`) — SPA-фолбэк; Functions матчатся раньше.
+  - Секрет `CEREBRAS_API_KEY` задан в проекте Pages (production).
+- MODEL: на аккаунте Cerebras Qwen НЕ включён — доступны только `zai-glm-4.7` и `gpt-oss-120b`.
+  Выбран **`zai-glm-4.7`** (самый тёплый русский тон + tool-calling; gpt-oss отдаёт пустой content).
+  Обе — «думающие»: reasoning в отдельном поле `message.reasoning` (в чат не течёт), но ест токены.
+  Подняты лимиты: `generateWarmContent` 400→2048, прокси-дефолт 1024→2048 (иначе JSON/контент режется).
+- GROK (xAI): пробовали — ключ валиден (сохранён в `токен от github.txt` как `grok:`), но команда
+  без кредитов → `permission-denied`. Нужно активировать кредиты/data-sharing в console.x.ai. Отложено.
+- ⚠️ ВНИМАНИЕ сессии НАПОМИНАНИЙ: Web Push cron (`api/cron-reminders.ts` + Vercel Cron) на Cloudflare
+  Pages НЕ работает (нет Pages-крона). Если полностью уходим с Vercel — напоминания надо вынести
+  в отдельный Cloudflare Worker с Cron Trigger, либо оставить этот кусок на Vercel. Решить отдельно.
+- ОСТАЛОСЬ: (1) перевести установленный PWA Олеси с vercel.app на pages.dev (кастомный домен или
+  переустановить с нового URL); (2) e2e-smoke живого приложения; (3) авто-деплой CF (git-connect в
+  дашборде) вместо ручного wrangler; (4) судьба напоминаний; (5) опц. снести Vercel-проект.
+- ПОПРАВКА (проверено): прод ВЫЕХАЛ. CLI-деплой `rfg7b0wt7` стал прод; cron=401 без секрета / 200 с
+  секретом; `/api/chat` отвечает 400 «Нужно поле messages» (функция жива); сайт 200. Статусы UNKNOWN
+  и «socket hang up» в `vercel ls/inspect` — артефакт нестабильной связи этой среды с api.vercel.com,
+  а НЕ лимит/поломка авто-деплоя. Свод сессий + CRON_SECRET + CEREBRAS_API_KEY — в проде.

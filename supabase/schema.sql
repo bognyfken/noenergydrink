@@ -6,6 +6,17 @@
 -- (ссылка не публикуется), поэтому это приемлемый компромисс. Если нужна
 -- строгая защита — добавить Supabase Auth и привязать политики к auth.uid().
 
+-- Профили (вход по коду). Данные пользователя лежат под секретным user_id,
+-- который выводится из кода (deriveDid), и нигде не хранится в открытом виде.
+-- В profiles хранится только salt + verifier для проверки кода на клиенте.
+create table if not exists profiles (
+  id         text primary key,
+  name       text not null,
+  salt       text not null,
+  verifier   text not null,
+  created_at timestamptz not null default now()
+);
+
 create table if not exists entries (
   user_id    text not null default 'default',
   date       text not null,                 -- 'YYYY-MM-DD'
@@ -38,6 +49,7 @@ create table if not exists meta (
 );
 
 -- ── RLS ───────────────────────────────────────────────────────────────────
+alter table profiles     enable row level security;
 alter table entries      enable row level security;
 alter table achievements enable row level security;
 alter table messages     enable row level security;
@@ -46,7 +58,7 @@ alter table meta         enable row level security;
 do $$
 declare t text;
 begin
-  foreach t in array array['entries', 'achievements', 'messages', 'meta'] loop
+  foreach t in array array['profiles', 'entries', 'achievements', 'messages', 'meta'] loop
     execute format('drop policy if exists anon_all on %I;', t);
     execute format(
       'create policy anon_all on %I for all to anon using (true) with check (true);', t

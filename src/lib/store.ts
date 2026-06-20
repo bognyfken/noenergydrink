@@ -7,6 +7,7 @@ import {
   deleteEntry as dexieDelete,
   getAllEntries,
   getUnlocked,
+  openDb,
   putEntry as dexiePut,
   putUnlocked,
 } from './db'
@@ -16,17 +17,25 @@ import {
   cloudFetchEntries,
   cloudUpsertAchievement,
   cloudUpsertEntry,
+  setActiveUserId,
 } from './supabase'
+import { clearSession, getSession, setSession, type Session } from './auth'
 import { toEntryMap, computeBestStreak } from './streak'
 import { unlockedIdsForStreak } from './achievements'
 
 interface AppState {
+  session: Session | null
+  /** прошла ли первичная проверка сохранённой сессии (чтобы не мигать экраном входа). */
+  authReady: boolean
   entries: Record<string, DayEntry>
   unlocked: Record<string, UnlockedAchievement>
   hydrated: boolean
   /** id ачивок, открытых только что (для анимации/тоста). Очищается потребителем. */
   justUnlocked: string[]
 
+  init: () => Promise<void>
+  login: (session: Session) => Promise<void>
+  logout: () => void
   hydrate: () => Promise<void>
   setDay: (date: string, status: DayStatus, note?: string) => Promise<void>
   setNote: (date: string, note: string) => Promise<void>
@@ -34,6 +43,12 @@ interface AppState {
   consumeJustUnlocked: () => void
   /** приватное: пересчитать открытые ачивки на основе записей. */
   _reconcileAchievements: () => void
+}
+
+/** активировать профиль: открыть его базу и выставить user_id для облака. */
+function activate(s: Session) {
+  openDb(s.did)
+  setActiveUserId(s.did)
 }
 
 function mergeByUpdatedAt(local: DayEntry[], cloud: DayEntry[]): DayEntry[] {
@@ -47,10 +62,36 @@ function mergeByUpdatedAt(local: DayEntry[], cloud: DayEntry[]): DayEntry[] {
 }
 
 export const useStore = create<AppState>((set, get) => ({
+  session: null,
+  authReady: false,
   entries: {},
   unlocked: {},
   hydrated: false,
   justUnlocked: [],
+
+  init: async () => {
+    const s = getSession()
+    if (s) {
+      activate(s)
+      set({ session: s, authReady: true })
+      await get().hydrate()
+    } else {
+      set({ authReady: true })
+    }
+  },
+
+  login: async (s) => {
+    activate(s)
+    setSession(s)
+    set({ session: s, entries: {}, unlocked: {}, hydrated: false, justUnlocked: [] })
+    await get().hydrate()
+  },
+
+  logout: () => {
+    clearSession()
+    setActiveUserId('default')
+    set({ session: null, entries: {}, unlocked: {}, hydrated: false, justUnlocked: [] })
+  },
 
   hydrate: async () => {
     const [local, cloud, localAch, cloudAch] = await Promise.all([

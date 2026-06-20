@@ -5,8 +5,8 @@ import './index.css'
 import App from './App.tsx'
 import { useStore } from './lib/store.ts'
 
-// подтянуть данные (локальный кеш + облако) при запуске
-void useStore.getState().hydrate()
+// проверить сохранённую сессию и подтянуть данные при запуске
+void useStore.getState().init()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

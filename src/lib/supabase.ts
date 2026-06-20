@@ -14,14 +14,51 @@ import type { DayEntry, UnlockedAchievement } from './types'
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
 
-/** Фиксированный идентификатор единственного пользователя приложения. */
-export const USER_ID =
-  (import.meta.env.VITE_APP_USER_ID as string | undefined) ?? 'default'
+// Активный user_id данных (секретный did после входа). Меняется при login/logout.
+let USER_ID = 'default'
+export function setActiveUserId(id: string): void {
+  USER_ID = id
+}
+export function getActiveUserId(): string {
+  return USER_ID
+}
 
 export const supabase: SupabaseClient | null =
   url && anonKey ? createClient(url, anonKey) : null
 
 export const cloudEnabled = supabase !== null
+
+// ── Профили ────────────────────────────────────────────────────────────────
+
+export interface CloudProfile {
+  id: string
+  name: string
+  salt: string
+  verifier: string
+}
+
+export async function cloudListProfiles(): Promise<CloudProfile[]> {
+  if (!supabase) return []
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, name, salt, verifier')
+    .order('created_at')
+  if (error) {
+    console.warn('[supabase] list profiles:', error.message)
+    return []
+  }
+  return (data ?? []) as CloudProfile[]
+}
+
+export async function cloudCreateProfile(p: CloudProfile): Promise<boolean> {
+  if (!supabase) return false
+  const { error } = await supabase.from('profiles').insert(p)
+  if (error) {
+    console.warn('[supabase] create profile:', error.message)
+    return false
+  }
+  return true
+}
 
 // ── Записи дней ──────────────────────────────────────────────────────────
 

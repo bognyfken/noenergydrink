@@ -1,0 +1,40 @@
+name: Deploy to Cloudflare Pages
+
+# Авто-деплой на push в main. Заменяет ручной `wrangler pages deploy`.
+# Секреты репозитория (Settings → Secrets → Actions):
+#   CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID — доступ к Cloudflare Pages
+#   VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY, VITE_APP_USER_ID, VITE_VAPID_PUBLIC — для сборки
+# Секрет Pages-функции CEREBRAS_API_KEY задаётся в проекте Cloudflare (не здесь).
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_APP_USER_ID: ${{ secrets.VITE_APP_USER_ID }}
+          VITE_VAPID_PUBLIC: ${{ secrets.VITE_VAPID_PUBLIC }}
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name=noenergydrink --branch=main

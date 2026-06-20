@@ -1,19 +1,148 @@
-import { MessageCircleHeart } from 'lucide-react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { motion } from 'framer-motion'
+import { Check, RotateCcw, Send } from 'lucide-react'
+import { useStore } from '../lib/store'
 
-// Заглушка экрана ИИ-помощника. Полная реализация — этап 3
-// (Qwen через Cerebras, function calling для записи заметок в дни).
+// Тёплый чат с Кабанёнком. Отправка сообщений, исполнение его действий с днями
+// (через стор), плашка «отменить», состояние «печатает» и мягкие ошибки.
+// При переходе из приветствия (location.state.send) — авто-отправка первой реплики.
 
 export default function ChatScreen() {
+  const messages = useStore((s) => s.messages)
+  const chatBusy = useStore((s) => s.chatBusy)
+  const chatError = useStore((s) => s.chatError)
+  const lastToolActions = useStore((s) => s.lastToolActions)
+  const sendMessage = useStore((s) => s.sendMessage)
+  const undo = useStore((s) => s.undoLastToolActions)
+
+  const [text, setText] = useState('')
+  const bottomRef = useRef<HTMLDivElement | null>(null)
+  const location = useLocation()
+  const navigate = useNavigate()
+  const sentRef = useRef(false)
+
+  // авто-отправка реплики, пришедшей из карточки-приветствия
+  useEffect(() => {
+    const send = (location.state as { send?: string } | null)?.send
+    if (send && !sentRef.current) {
+      sentRef.current = true
+      void sendMessage(send)
+      navigate('.', { replace: true, state: null })
+    }
+  }, [location.state, navigate, sendMessage])
+
+  // держим прокрутку у последнего сообщения
+  useLayoutEffect(() => {
+    bottomRef.current?.scrollIntoView({ block: 'end' })
+  }, [messages.length, chatBusy, lastToolActions.length])
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault()
+    const t = text.trim()
+    if (!t || chatBusy) return
+    setText('')
+    void sendMessage(t)
+  }
+
+  const empty = messages.length === 0 && !chatBusy
+
   return (
-    <div className="flex min-h-[70vh] flex-col items-center justify-center gap-4 pt-6 text-center">
-      <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary/20">
-        <MessageCircleHeart size={38} className="text-lavender" />
-      </div>
-      <h1 className="text-xl font-bold text-text">Помощник скоро появится</h1>
-      <p className="max-w-xs text-sm leading-relaxed text-muted">
-        Здесь будет тёплый ИИ-собеседник: ему можно рассказать, как прошёл день,
-        а он поддержит и сам запишет заметку в календарь. Добавим на следующем этапе.
-      </p>
+    <div className="flex flex-col gap-3 pb-28 pt-4">
+      {empty ? (
+        <div className="flex flex-col items-center gap-3 px-4 pt-12 text-center">
+          <img src="/logo.png" alt="" className="h-16 w-16 rounded-3xl" />
+          <h1 className="text-lg font-bold text-text">Привет, я Кабанёнок 💜</h1>
+          <p className="max-w-xs text-sm leading-relaxed text-muted">
+            Твой персональный помощник. Расскажи, как прошёл день — я пойму, поддержу и сам
+            отмечу его в календаре.
+          </p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {messages.map((m) =>
+            m.role === 'user' ? (
+              <motion.div
+                key={m.id}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="max-w-[82%] self-end rounded-2xl rounded-br-md bg-primary px-4 py-2.5 text-sm leading-relaxed text-white"
+              >
+                {m.content}
+              </motion.div>
+            ) : (
+              <motion.div
+                key={m.id}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex max-w-[88%] flex-col gap-1.5 self-start"
+              >
+                <div className="whitespace-pre-wrap rounded-2xl rounded-bl-md bg-surface-2 px-4 py-2.5 text-sm leading-relaxed text-text">
+                  {m.content}
+                </div>
+                {m.toolResult && (
+                  <div className="flex items-center gap-1.5 pl-1 text-[11px] text-muted">
+                    <Check size={12} className="text-lavender" /> {m.toolResult}
+                  </div>
+                )}
+              </motion.div>
+            ),
+          )}
+
+          {chatBusy && (
+            <div className="flex items-center gap-1.5 self-start rounded-2xl rounded-bl-md bg-surface-2 px-4 py-3.5">
+              {[0, 1, 2].map((i) => (
+                <motion.span
+                  key={i}
+                  className="h-2 w-2 rounded-full bg-muted"
+                  animate={{ opacity: [0.3, 1, 0.3] }}
+                  transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }}
+                />
+              ))}
+            </div>
+          )}
+
+          {lastToolActions.length > 0 && (
+            <div className="flex items-center gap-2 self-start rounded-2xl border border-white/10 bg-bg/60 px-3 py-2 text-xs text-muted">
+              <Check size={13} className="shrink-0 text-lavender" />
+              <span className="flex-1">{lastToolActions.map((a) => a.label).join(', ')}</span>
+              <button
+                onClick={() => void undo()}
+                className="tap flex items-center gap-1 font-semibold text-lavender"
+              >
+                <RotateCcw size={12} /> отменить
+              </button>
+            </div>
+          )}
+
+          {chatError && (
+            <div className="self-center px-4 text-center text-xs text-drank">{chatError}</div>
+          )}
+        </div>
+      )}
+
+      <div ref={bottomRef} />
+
+      <form
+        onSubmit={submit}
+        className="fixed inset-x-0 z-30 mx-auto flex max-w-md items-center gap-2 px-4"
+        style={{ bottom: 'calc(var(--tabbar-h) + var(--sab) + 8px)' }}
+      >
+        <input
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Напиши Кабанёнку…"
+          className="min-w-0 flex-1 rounded-full border border-white/10 bg-surface px-4 py-3 text-text shadow-lg outline-none transition-colors placeholder:text-muted focus:border-primary/60"
+        />
+        <button
+          type="submit"
+          disabled={!text.trim() || chatBusy}
+          aria-label="отправить"
+          className="tap flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary text-white shadow-lg transition-opacity disabled:opacity-40"
+        >
+          <Send size={18} />
+        </button>
+      </form>
     </div>
   )
 }

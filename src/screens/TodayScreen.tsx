@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { LogOut, Settings, User } from 'lucide-react'
 import { useStore } from '../lib/store'
 import { useStreak } from '../hooks/useStreak'
@@ -8,8 +8,10 @@ import { motivationFor } from '../lib/motivation'
 import StreakFlame from '../components/today/StreakFlame'
 import PrimaryButton from '../components/today/PrimaryButton'
 import MotivationCard from '../components/today/MotivationCard'
+import GreetingCard from '../components/today/GreetingCard'
 import Sheet from '../components/ui/Sheet'
 import ReminderToggle from '../components/ReminderToggle'
+import GreetingToggle from '../components/GreetingToggle'
 
 export default function TodayScreen() {
   const today = useToday()
@@ -17,11 +19,34 @@ export default function TodayScreen() {
   const setDay = useStore((s) => s.setDay)
   const session = useStore((s) => s.session)
   const logout = useStore((s) => s.logout)
+  const hydrated = useStore((s) => s.hydrated)
+  const greetingEnabled = useStore((s) => s.greetingEnabled)
+  const warmMotivation = useStore((s) => s.warm?.motivation)
+  const refreshWarmContent = useStore((s) => s.refreshWarmContent)
   const { current } = useStreak()
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [greetOpen, setGreetOpen] = useState(false)
 
+  // мотивацию пишет Кабанёнок; пока её нет (офлайн/первый запуск) — запасная фраза
   const seed = parseKey(today).getDate()
-  const motivation = motivationFor(current, seed)
+  const motivation = warmMotivation ?? motivationFor(current, seed)
+
+  // обновить тёплый контент (мотивация + быстрые ответы) и пред-сгенерировать следующий
+  useEffect(() => {
+    if (hydrated) void refreshWarmContent()
+  }, [hydrated, refreshWarmContent])
+
+  // приветствие — только если день не отмечен, включено в настройках и ещё не показывали сегодня
+  useEffect(() => {
+    if (!hydrated || !greetingEnabled || status !== 'unmarked') return
+    if (sessionStorage.getItem(`kab_greeted_${today}`)) return
+    setGreetOpen(true)
+  }, [hydrated, greetingEnabled, status, today])
+
+  function closeGreet() {
+    sessionStorage.setItem(`kab_greeted_${today}`, '1')
+    setGreetOpen(false)
+  }
 
   return (
     <div className="flex flex-col gap-8 pt-6">
@@ -49,6 +74,8 @@ export default function TodayScreen() {
 
       <MotivationCard text={motivation} />
 
+      <GreetingCard open={greetOpen} onClose={closeGreet} />
+
       <Sheet open={settingsOpen} onClose={() => setSettingsOpen(false)} title="Профиль">
         <div className="flex flex-col gap-4">
           <div className="flex items-center gap-3 rounded-2xl bg-bg/50 px-4 py-3">
@@ -60,6 +87,7 @@ export default function TodayScreen() {
               <div className="text-xs text-muted">Это твой профиль</div>
             </div>
           </div>
+          <GreetingToggle />
           <ReminderToggle />
           <button
             onClick={() => {

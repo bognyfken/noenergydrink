@@ -11,6 +11,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@fontsource-variable/comfortaa": "^5.2.8",
     "@fontsource-variable/manrope": "^5.2.8",
     "@supabase/supabase-js": "^2.108.2",
     "date-fns": "^4.4.0",

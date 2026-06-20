@@ -62,7 +62,7 @@ export default function DayEditorSheet({ dateKey, onClose }: Props) {
             value={note}
             onChange={(e) => setNoteText(e.target.value)}
             placeholder="Как прошёл день? Была ли тяга, как ты справилась…"
-            rows={4}
+            rows={3}
             className="w-full resize-none rounded-2xl border border-white/10 bg-bg/60 p-3 text-text placeholder:text-muted/60 focus:border-primary focus:outline-none"
           />
         </div>

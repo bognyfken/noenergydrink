@@ -59,7 +59,7 @@ export default function StreakFlame({ streak }: Props) {
         transition={{ type: 'spring', damping: 14, stiffness: 280 }}
         className="-mt-2 text-center"
       >
-        <div className="text-6xl font-extrabold tracking-tight text-text">{streak}</div>
+        <div className="font-display text-6xl font-bold tracking-tight text-text">{streak}</div>
         <div className="mt-1 text-sm text-muted">
           {streak === 0
             ? 'начни серию сегодня'

@@ -45,16 +45,19 @@ export default function MonthGrid({ month, entries, onSelectDay }: Props) {
           const entry = entries[key]
           const status = entry?.status ?? 'unmarked'
           const isToday = key === today
+          const isFuture = key > today // строки 'YYYY-MM-DD' сравниваются корректно
           const hasNote = !!entry?.note
 
           return (
             <button
               key={key}
+              disabled={isFuture}
               onClick={() => onSelectDay(key)}
               className={[
-                'tap relative flex aspect-square items-center justify-center rounded-xl text-sm font-semibold transition-transform active:scale-90',
+                'tap relative flex aspect-square items-center justify-center rounded-xl text-sm font-semibold transition-transform',
                 STATUS_CLASS[status],
-                inMonth ? '' : 'opacity-30',
+                !inMonth ? 'opacity-30' : '',
+                isFuture ? 'opacity-25' : 'active:scale-90',
                 isToday ? 'ring-2 ring-lavender ring-offset-2 ring-offset-bg' : '',
               ].join(' ')}
             >

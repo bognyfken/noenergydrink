@@ -6,7 +6,6 @@ import StreakFlame from '../components/today/StreakFlame'
 import PrimaryButton from '../components/today/PrimaryButton'
 import StatsRow from '../components/today/StatsRow'
 import MotivationCard from '../components/today/MotivationCard'
-import CanMark from '../components/CanMark'
 
 export default function TodayScreen() {
   const today = todayKey()
@@ -19,9 +18,8 @@ export default function TodayScreen() {
 
   return (
     <div className="flex flex-col gap-7 pt-6">
-      <header className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-text">Нет энергетикам</h1>
-        <CanMark className="h-8 w-8 opacity-80" />
+      <header className="flex items-center justify-center pt-1">
+        <h1 className="text-2xl font-bold text-text">Нет энергетикам</h1>
       </header>
 
       <section className="pt-2">

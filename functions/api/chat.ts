@@ -10,7 +10,7 @@ interface Env {
 }
 
 const CEREBRAS_URL = 'https://api.cerebras.ai/v1/chat/completions'
-const DEFAULT_MODEL = 'qwen-3-235b-a22b-instruct'
+const DEFAULT_MODEL = 'zai-glm-4.7'
 
 interface ChatBody {
   messages?: unknown

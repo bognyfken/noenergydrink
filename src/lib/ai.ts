@@ -9,7 +9,10 @@
 
 import type { DayStatus } from './types'
 
-export const KABANENOK_MODEL = 'qwen-3-235b-a22b-instruct'
+// На аккаунте Cerebras доступны zai-glm-4.7 и gpt-oss-120b. GLM 4.7 даёт тёплый,
+// человечный русский тон и корректно вызывает инструменты — то, что нужно Кабанёнку
+// (gpt-oss часто отдаёт пустой content, уводя всё в reasoning).
+export const KABANENOK_MODEL = 'zai-glm-4.7'
 
 // ── Протокол сообщений (OpenAI chat completions) ─────────────────────────────
 

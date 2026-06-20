@@ -1,0 +1,40 @@
+# --- SECURITY: личные ключи и токены — НИКОГДА не коммитить ---
+токен от github.txt
+*токен*
+*.token
+*.pem
+.env
+.env.*
+!.env.example
+
+# Зависимости
+node_modules/
+
+# Сборка
+dist/
+dist-ssr/
+*.local
+
+# Логи
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+logs/
+*.log
+
+# Редакторы / ОС
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# Вики: сырьё — локально, не в git
+wiki/sources/*
+!wiki/sources/.gitkeep
+!wiki/sources/README.md
+
+# Тесты/кеш
+coverage/
+.vite/

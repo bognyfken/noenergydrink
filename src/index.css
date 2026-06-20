@@ -1,0 +1,111 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/manrope';
+
+/* ── Тёплая, спокойная палитра: фиолет / лаванда / чёрный ─────────────── */
+@theme {
+  --font-sans: 'Manrope Variable', ui-sans-serif, system-ui, sans-serif;
+
+  --color-bg: #160f22;
+  --color-surface: #241934;
+  --color-surface-2: #2e2342;
+  --color-primary: #7c5cbf;
+  --color-primary-soft: #6a4caa;
+  --color-lavender: #cdb4f6;
+  --color-accent: #a78bda;
+  --color-text: #f3eefb;
+  --color-muted: #9a8cb5;
+
+  --color-clean: #7c5cbf;
+  --color-drank: #c46b8a;
+  --color-unmarked: #2e2342;
+  --color-flame: #f0a35e;
+
+  --radius-soft: 1.25rem;
+}
+
+/* ── Базовые стили ───────────────────────────────────────────────────── */
+:root {
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+  --tabbar-h: 68px;
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  /* мягкий фоновый градиент с акцентом фиолета */
+  background-image:
+    radial-gradient(120% 80% at 50% -10%, rgba(124, 92, 191, 0.28), transparent 60%),
+    radial-gradient(90% 60% at 90% 110%, rgba(205, 180, 246, 0.12), transparent 60%);
+  background-attachment: fixed;
+}
+
+/* поля ввода не зумятся на iOS при фокусе (нужен размер >= 16px) */
+input,
+textarea,
+select,
+button {
+  font-family: inherit;
+  font-size: 16px;
+}
+
+/* удобные тач-цели */
+.tap {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* динамическая высота вьюпорта — без скачков из-за адресной строки Safari */
+.app-shell {
+  min-height: 100svh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  padding-top: var(--sat);
+  padding-left: var(--sal);
+  padding-right: var(--sar);
+}
+
+.scroll-area {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  /* чтобы контент не уезжал под нижний таб-бар */
+  padding-bottom: calc(var(--tabbar-h) + var(--sab) + 12px);
+}
+
+.bottom-tabs {
+  padding-bottom: max(var(--sab), 8px);
+}
+
+/* скрыть скроллбар, но оставить скролл */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

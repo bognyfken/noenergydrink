@@ -32,3 +32,12 @@
 - TODO (на пользователе): выполнить `supabase/schema.sql` в SQL Editor — таблиц пока нет
   (PostgREST 404 PGRST205), из-за чего облачный синк не активен (приложение живёт на Dexie).
 - NOTE: Cerebras-ключ получен, отложен до этапа 3 (ИИ-помощник).
+- DONE: облако Supabase настроено. `schema.sql` выполнен через Management API (PAT `sbp_`,
+  сохранён в `токен от github.txt`, gitignored). Все 4 таблицы + RLS (`anon`) работают.
+  E2E проверено: при открытии приложения локальные данные (8 дней 13–20 июня) и ачивки
+  (d1, d3) автоматически залились в облако. Двусторонний синк рабочий.
+- FIXED: back-fill ачивок в `hydrate` (раньше досылались только записи дней) — `lib/store.ts`.
+- INFRA: т-н доступы пользователя в `токен от github.txt` (gitignored): GitHub PAT, Vercel,
+  Cerebras, Supabase publishable/secret + Supabase PAT (`sbp_`). Management API Supabase и
+  Vercel API из этой среды отвечают только через curl (Node fetch к api.* отваливается по таймауту).
+- STATUS: этапы 0–1 завершены и в проде. Дальше — этап 2 (полировка) и этап 3 (ИИ).

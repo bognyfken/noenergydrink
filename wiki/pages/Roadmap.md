@@ -1,6 +1,6 @@
 # Roadmap
 
-**Last updated:** 2026-06-20
+**Last updated:** 2026-06-21
 
 ---
 
@@ -31,31 +31,34 @@
 ## Next Up
 - [ ] Финальный логотип/иконка от пользователя; чистка водяного знака на PWA-иконках
 
-## Этап 3 — ИИ-помощник «Кабанёнок» (Qwen)
-Имя помощника — **Кабанёнок** (семейная манера: кабан/кабаниха/кабанёнок). Тон — мягкий,
-тёплый, на «ты», женские местоимения, никогда не осуждает срывы. Представляется
-«Привет, я Кабанёнок, твой персональный помощник», НИКОГДА не зовёт себя Qwen/нейросетью.
-Модель: `qwen-3-235b-a22b-instruct`.
+## Этап 3 — ИИ-помощник «Кабанёнок» ✅ (на проде)
+Имя — **Кабанёнок** (семейная манера: кабан/кабаниха/кабанёнок). Тон — мягкий, тёплый, на «ты»,
+женские местоимения, не осуждает срывы. Представляется «Кабанёнком», НИКОГДА не зовёт себя ИИ/моделью.
+Модель: **`zai-glm-4.7`** (Cerebras; Qwen на аккаунте недоступен — из доступного GLM самый тёплый + tool-calling).
 
-- [x] **Подэтап 1 — фундамент:** прокси `api/chat.ts` (Vercel Edge, ключ только на сервере);
-  `lib/ai.ts` — персона, `buildSystemPrompt` (контекст+память), 3 инструмента
-  (`set_day_status`, `add_day_note`, `remember`), `chat()`/`chatAfterTools()`,
-  `generateWarmContent()` (мотивация + 3 быстрых ответа одним вызовом).
-- [x] **Подэтап 2 — движок (стор/память/синк):** `lib/memory.ts` (wiki-подобная память
-  об Олесе: profile+recent, лимит, дедуп), Dexie-хелперы (`messages`, `meta`),
-  Supabase-синк (`messages`, `meta`), `lib/assistant.ts` (сборка контекста), слой
-  стора: `sendMessage` (tool round-trip + плашка «отменить»), `appendNote`, `memory`,
-  `refreshWarmContent` (пред-генерация наперёд), `greetingEnabled`, undo, `_loadAssistant`.
-- [ ] **Подэтап 3 — UI:** настоящий `ChatScreen` (пузыри, ввод, плашки undo, офлайн/ошибки).
-- [ ] **Подэтап 4 — приветствие:** `GreetingCard` на «Сегодня» (вопрос + 3 сгенерённых ответа +
-  поле ввода → переброс в «Помощник»); тумблер «Кабанёнок встречает» в шестерёнке
-  (по умолчанию вкл; только когда сегодняшний день не отмечен).
-- [ ] **Подэтап 5 — мотивация через Кабанёнка:** `MotivationCard` берёт `warm.motivation`.
-- [ ] **Подэтап 6 — деплой:** `CEREBRAS_API_KEY` в Vercel, smoke на проде.
-- [x] Ключ Cerebras получен (в `токен от github.txt`, gitignored).
+- [x] **Фундамент:** прокси к Cerebras, `lib/ai.ts` (персона, системный промпт из контекста+памяти,
+  инструменты `set_day_status`/`add_day_note`/`remember`, `chat`/`chatAfterTools`, `generateWarmContent`).
+- [x] **Движок:** `lib/memory.ts` (wiki-подобная память), `lib/assistant.ts` (контекст), слой стора
+  (`sendMessage` с исполнением tool-calls + плашка «отменить», `refreshWarmContent`, `greetingEnabled`, undo).
+- [x] **UI чата:** настоящий `ChatScreen` (пузыри, ввод, «печатает», undo, ошибки).
+- [x] **Приветствие:** `GreetingCard` на «Сегодня» (вопрос + 3 сгенерённых ответа + поле ввода → чат);
+  тумблер «Кабанёнок встречает» (по умолчанию вкл; только если день не отмечен).
+- [x] **Мотивация через Кабанёнка:** `MotivationCard` берёт `warm.motivation` (меняется при заходе).
+- [x] **История бесед:** список/новый/переключение/переименование/удаление (`ConversationsSheet`),
+  `conversation_id` в `messages`, беседы в `meta`.
+- [x] **Скорость опроса:** убран лишний второй round-trip (GLM отдаёт текст вместе с tool-call).
+- [x] **Деплой:** `CEREBRAS_API_KEY` в Cloudflare Pages, e2e-smoke на проде зелёный.
+
+## Этап 3.5 — переезд хостинга на Cloudflare ✅
+- [x] **Cloudflare Pages** вместо Vercel (Vercel блокировал деплои: `COMMIT_AUTHOR_REQUIRED`).
+  Прод: https://noenergydrink.pages.dev. Прокси чата — Pages Function `functions/api/chat.ts`.
+- [x] **Авто-деплой** через GitHub Actions (`.github/workflows/deploy.yml`): push → build → wrangler.
+- [ ] **Напоминания** (Web Push) — крон был на Vercel; на Cloudflare нужен отдельный Worker с Cron Trigger.
+- [ ] Grok (xAI) — ключ есть, но команда без кредитов (`permission-denied`); включить в console.x.ai.
 
 ## Этап 4 — по желанию
-- [ ] iOS splash-экраны, кастомный домен, график рекордов
+- [ ] iOS splash-экраны, кастомный домен (сейчас `*.pages.dev`), график рекордов
+- [ ] Вернуть арт-медали вместо эмодзи (по решению — пока эмодзи)
 
 ## See also
 - [[Overview]] · [[Features]]
